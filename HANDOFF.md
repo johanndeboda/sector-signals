@@ -228,10 +228,11 @@ ANTHROPIC_API_KEY=<get_in_week_2>
 
 ## 11. Open Decisions / TBD
 
-- [ ] Patent data source (USPTO bulk vs. Kaggle) — Week 2
-- [ ] Job postings source — Week 2
+- [x] ~~Patent data source~~ — USPTO Open Data Portal (PatentsView dead, ODP is new official source)
+- [ ] Job postings source — Greenhouse/Lever per-company vs. Kaggle (Week 2 Day 1 decision)
 - [ ] Forecasting model (ARIMA vs. Prophet vs. regression) — Week 5
-
+- [ ] TSM financial backfill depth — accept yfinance-only, or build 20-F parser later? — defer to Week 3
+- [ ] Q4 financial data gap — EDGAR returns ~3 quarters/year because Q4 lives in 10-K; do we backfill? — defer to Week 3
 ---
 
 ## 12. Habit to Maintain Throughout Project
@@ -281,12 +282,15 @@ The handoff doc should be updated by Claude at the end of each major milestone (
 - ✅ Repo on GitHub, schema loaded, 5 tables + 12 companies seeded
 - ✅ `etl/load_financials.py` — yfinance loader, idempotent, working
 - ✅ `etl/edgar_backfill.py` — SEC EDGAR backfill (US filers, 5yr quarterly)
-- ✅ Data loaded: ~14k daily prices (11 tickers, 5yr), 215 quarterly financials (12 tickers, ~5yr for US, less for TSM)
+- ✅ Data loaded: ~14k daily prices (11 tickers, 5yr), 215 quarterly financials (~5yr for US filers)
 - ✅ ANSS handled (delisted via Synopsys acquisition July 2025; pre-acquisition data preserved via EDGAR)
 - ✅ TSM scoped to yfinance-only (foreign filer, 20-F not 10-Q)
-- ✅ `interview_moments.md` started, 4 entries logged
+- ✅ `interview_moments.md` started with 6+ entries
+- ✅ Anthropic API key obtained and added to .env
+- ✅ USPTO.gov account created (proactive — ODP requires auth starting June 18, 2026)
+- ✅ Confirmed PatentsView API is dead — migrated to USPTO Open Data Portal March 20, 2026
 
-**Next up (Week 2):**
-- Patent ETL (USPTO bulk vs. Kaggle — decide source)
-- Job postings ETL (Greenhouse/Lever vs. Kaggle — decide source)
-- LLM job title classification via Claude API (get API key)
+**Next up (Week 2, Day 1):**
+- Patent ETL via USPTO Open Data Portal (data.uspto.gov/bulkdata) — bulk download approach
+- Job postings source decision and ETL
+- LLM job title classification via Claude API
