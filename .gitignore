@@ -2,8 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
-data/raw/
-data/*.csv
+data/
 .ipynb_checkpoints/
 .vscode/
 .DS_Store
