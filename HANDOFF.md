@@ -78,9 +78,9 @@ Reframed from the original "Semi Signals" to be sector-agnostic in architecture,
 
 | Dataset | Source | Status | Notes |
 |---|---|---|---|
-| Financials (quarterly + daily stock) | `yfinance` + SEC EDGAR | Confirmed — Week 1–2 | Easiest, start here |
-| Patents | USPTO bulk download OR Kaggle USPTO dataset | TBD Week 2 | Avoid PatentsView API — in transition (migrating to data.uspto.gov March 20, 2026) |
-| Job postings | Greenhouse/Lever APIs or Kaggle | TBD Week 3 | LLM classification on raw titles |
+| Financials (quarterly + daily stock) | `yfinance` + SEC EDGAR | ✅ Loaded Week 1 D1–D2 | ~14k daily prices, 215 quarterly rows |
+| Patents | **PatentsView bulk TSV downloads (hosted on ODP/S3)** | 🔧 In progress — Week 1 D2 prep; load Day 3+ | PatentSearch API decommissioned 3/20/26; bulk files confirmed live |
+| Job postings | Greenhouse/Lever APIs or Kaggle | TBD Week 2 | LLM classification on raw titles |
 | Earnings transcripts | Motley Fool scrape or Kaggle | Week 4 (promoted from stretch) | LLM structured signal extraction — core differentiator |
 
 ### Target companies (12)
@@ -128,12 +128,14 @@ Compressed from original 10-week plan because of 20–25 hr/week commitment and 
 
 | Week | Focus | Output |
 |---|---|---|
-| 1 | Env setup, schema, financial ETL | Working Postgres DB + financials + stock prices loaded |
-| 2 | Patent + job posting ETL, LLM job classification | All raw data tables populated, jobs enriched via Claude API |
+| 1 | Env setup, schema, financial ETL, patent ETL | Working Postgres DB + financials + stock prices + patents loaded |
+| 2 | Job posting ETL, LLM job classification | Job postings table populated, jobs enriched via Claude API |
 | 3 | Data quality, joins, core analysis (revenue, R&D, hiring trends) | Jupyter notebook with first findings |
 | 4 | Cross-source correlations + LLM earnings extraction | Key thesis findings, earnings signals table |
 | 5 | Forecasting + Tableau dashboard | Dashboard published, predictive layer |
 | 6 (buffer) | Writeup, polish, GitHub Action, LinkedIn posts | Portfolio-ready, "live system" signal active |
+
+**Note on Week 1 scope creep (intentional):** Patent ETL was originally scoped for Week 2, but with financials done in Week 1 D1–D2 ahead of schedule, patents starts in Week 1. This buys a half-week of buffer back into Weeks 3–4 (the analysis weeks that matter most).
 
 **Why analysis weeks (3–4) don't compress further:** Insight quality is a thinking problem, not a code problem. Rushing produces shallow findings — the "basic project" trap. Plumbing weeks (1–2, 5) can be sprinted; analysis weeks need breathing room.
 
@@ -175,23 +177,43 @@ In interviews, candidate needs to say *"I noticed X, which made me ask Y, so I r
 
 ---
 
-## 9. Current State (as of this handoff)
+## 9. Current State (as of end of Week 1, Day 2)
 
 **Completed:**
-- ✅ Python, PostgreSQL, Git, VSCode installed
-- ✅ `sector-signals` project folder created at `C:\Users\<user>\sector-signals`
-- ✅ Python venv created and activated
-- ✅ Packages installed: pandas, yfinance, sqlalchemy, psycopg2-binary, python-dotenv, anthropic, requests, jupyter
-- ✅ `sector_signals` Postgres database created
-- ✅ Starter files in repo: `README.md`, `.gitignore`, `.env` (with real password), `requirements.txt`
-- ✅ Git repo initialized, connected to GitHub, first commit pushed
-- ✅ Schema written: `sql/schema.sql` — 5 tables + 12 seeded companies
-- ✅ Schema loaded into Postgres via pgAdmin Query Tool
+- ✅ All environment setup (Python, Postgres, Git, VSCode, venv, packages)
+- ✅ Repo on GitHub, schema loaded, 5 tables + 12 companies seeded
+- ✅ `etl/load_financials.py` — yfinance loader, idempotent, working
+- ✅ `etl/edgar_backfill.py` — SEC EDGAR backfill (US filers, 5yr quarterly)
+- ✅ Data loaded: ~14k daily prices (11 tickers, 5yr), 215 quarterly financials (~5yr for US filers)
+- ✅ ANSS handled (delisted via Synopsys acquisition July 2025; pre-acquisition data preserved via EDGAR)
+- ✅ TSM scoped to yfinance-only (foreign filer, 20-F not 10-Q)
+- ✅ `interview_moments.md` started — 7+ entries (added patents API pivot)
+- ✅ Anthropic API key obtained and added to .env
+- ✅ USPTO.gov account created + linked to ID.me
+- ✅ USPTO ODP API key obtained and added to .env
+- ✅ `.env.example` created and committed (template with all 3 API key vars listed)
 
-**Next up (Day 4 / Week 1):**
-- Write financials ETL script: pull 5 yrs quarterly financials + daily stock prices via yfinance for all 12 tickers → load into `financials_quarterly` and `stock_prices_daily`
-- Make it idempotent (`ON CONFLICT DO NOTHING`)
-- Establish ETL code pattern for reuse on later data sources
+**Patents data source pivot (Week 1 Day 2 afternoon):**
+- Original plan: query PatentSearch API per company for 5yr granted patents
+- Discovered on first test call: API decommissioned March 20, 2026; data migrated to bulk TSV downloads
+- New plan: download 4 PatentsView TSV files from S3, filter to 12 companies in pandas, upsert to Postgres
+- Verified S3 URLs return HTTP 200 (tested `g_assignee_disambiguated.tsv.zip` — 359 MB confirmed)
+- ODP API key not wasted: still required for other ODP APIs (assignments, file wrapper) potentially used in Week 3–4 enrichment
+
+**Next up (Week 1, Day 3 — patents ETL execution):**
+- Download 4 PatentsView TSV files (~2.5 GB total) into `data/` folder (gitignored):
+  - `g_patent.tsv.zip` (~1 GB) — patent id, title, grant date
+  - `g_assignee_disambiguated.tsv.zip` (~359 MB) — patent → org mapping
+  - `g_inventor_disambiguated.tsv.zip` (~500 MB) — patent → inventors
+  - `g_cpc_current.tsv.zip` (~600 MB) — patent → CPC classification
+- Build `etl/assignee_mapping.py` — dict of ticker → list of org name variants for all 12 companies (e.g. "NVDA" → ["NVIDIA Corporation", "Nvidia Corp."])
+  - Use exploration query against `g_assignee_disambiguated` to find real variants in the data, not guessed
+- Write `etl/load_patents.py`:
+  - Read `g_assignee_disambiguated` with pandas (likely chunked due to size), filter to target orgs
+  - Join against `g_patent` (for title, grant_date), `g_cpc_current` (primary CPC), `g_inventor_disambiguated` (count → inventor_count)
+  - Filter `grant_date` to 2021-01-01 onward (5yr window)
+  - Idempotent upsert to `patents` table via `ON CONFLICT DO NOTHING`
+- Sanity-check loaded data in pgAdmin: counts per ticker, date range, no zero `inventor_count`, expect NVDA in thousands and TSM low (foreign filer)
 
 ---
 
@@ -201,6 +223,8 @@ In interviews, candidate needs to say *"I noticed X, which made me ask Y, so I r
 sector-signals/
 ├── venv/                  # Python virtual env (gitignored)
 ├── etl/                   # ETL scripts (one per data source)
+│   ├── load_financials.py
+│   └── edgar_backfill.py
 ├── notebooks/             # Jupyter analysis notebooks
 ├── sql/                   # schema.sql + analytical queries
 │   └── schema.sql
@@ -214,30 +238,36 @@ sector-signals/
 └── HANDOFF.md             # This file
 ```
 
-### `.env` contents (template)
+### `.env` contents (template — see `.env.example` in repo)
 ```
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=sector_signals
 DB_USER=postgres
 DB_PASSWORD=<real_password>
-ANTHROPIC_API_KEY=<get_in_week_2>
+ANTHROPIC_API_KEY=<real_key>
+USPTO_ODP_API_KEY=<real_key>
 ```
 
 ---
 
 ## 11. Open Decisions / TBD
 
-- [x] ~~Patent data source~~ — USPTO Open Data Portal (PatentsView dead, ODP is new official source)
-- [ ] Job postings source — Greenhouse/Lever per-company vs. Kaggle (Week 2 Day 1 decision)
+- [x] ~~Patent data source~~ — PatentsView bulk TSV downloads from S3 (API was decommissioned 3/20/26, pivoted Week 1 Day 2)
+- [ ] Job postings source — Greenhouse/Lever per-company vs. Kaggle (decision in Week 2)
 - [ ] Forecasting model (ARIMA vs. Prophet vs. regression) — Week 5
 - [ ] TSM financial backfill depth — accept yfinance-only, or build 20-F parser later? — defer to Week 3
 - [ ] Q4 financial data gap — EDGAR returns ~3 quarters/year because Q4 lives in 10-K; do we backfill? — defer to Week 3
+- [ ] CPC classification: store only primary class (current schema) vs. extend schema to store all CPC codes per patent — defer until Week 3 analysis reveals whether multi-class matters
+
 ---
 
 ## 12. Habit to Maintain Throughout Project
 
 **`interview_moments.md`** — Every time something interesting happens (weird data bug fixed, surprising finding, tradeoff weighed), drop 2 sentences in. By Week 4 there'll be 20+ raw anecdotes for interviews that would otherwise be forgotten. Highest-ROI habit of the project.
+
+**Recent additions:**
+- W1 D2: PatentsView API was reportedly "in transition" per original plan; discovered via DNS failure on first test call that it had actually been fully decommissioned March 20. Pivoted same-session to bulk TSV approach.
 
 ---
 
@@ -265,7 +295,7 @@ ANTHROPIC_API_KEY=<get_in_week_2>
 ## 14. How to Use This Doc
 
 **Starting a new chat:**
-> "I'm continuing the Sector Signals project. Here's the full handoff doc. I'm on Week 1, Day 4. Help me write the financials ETL script."
+> "I'm continuing the Sector Signals project. Here's the full handoff doc. I'm on Week 1, Day 3. Help me write the patents ETL script."
 
 **Returning after a break:**
 > "Continuing Sector Signals. Handoff attached. I last completed [X]. Let's keep going from [Y]."
@@ -273,24 +303,4 @@ ANTHROPIC_API_KEY=<get_in_week_2>
 **Asking for a pivot or new direction:**
 > "Continuing Sector Signals. Handoff attached. Considering [change]. Walk me through whether it makes sense."
 
-The handoff doc should be updated by Claude at the end of each major milestone (end of each week) so the "Current State" section in §9 stays accurate.
-
-## 9. Current State (as of end of Week 1, Day 2)
-
-**Completed:**
-- ✅ All environment setup (Python, Postgres, Git, VSCode, venv, packages)
-- ✅ Repo on GitHub, schema loaded, 5 tables + 12 companies seeded
-- ✅ `etl/load_financials.py` — yfinance loader, idempotent, working
-- ✅ `etl/edgar_backfill.py` — SEC EDGAR backfill (US filers, 5yr quarterly)
-- ✅ Data loaded: ~14k daily prices (11 tickers, 5yr), 215 quarterly financials (~5yr for US filers)
-- ✅ ANSS handled (delisted via Synopsys acquisition July 2025; pre-acquisition data preserved via EDGAR)
-- ✅ TSM scoped to yfinance-only (foreign filer, 20-F not 10-Q)
-- ✅ `interview_moments.md` started with 6+ entries
-- ✅ Anthropic API key obtained and added to .env
-- ✅ USPTO.gov account created (proactive — ODP requires auth starting June 18, 2026)
-- ✅ Confirmed PatentsView API is dead — migrated to USPTO Open Data Portal March 20, 2026
-
-**Next up (Week 2, Day 1):**
-- Patent ETL via USPTO Open Data Portal (data.uspto.gov/bulkdata) — bulk download approach
-- Job postings source decision and ETL
-- LLM job title classification via Claude API
+The handoff doc should be updated by Claude at the end of each major milestone (end of each week, or at significant pivots) so the "Current State" section in §9 stays accurate.

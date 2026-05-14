@@ -1,0 +1,27 @@
+# Interview Moments — Running log
+Notes-to-self for interview anecdotes. 2 sentences max per entry.
+## Week 1
+- [DAY 1]:
+
+Set up Environment
+
+
+## Week 1
+- [Day 2] : 
+
+Synopsys had closed acquisition of Ansys in July of 2025 hence why it was not found by yfinance. Dataset only contains companies that are still actively traded meaning that anything I conclude about industry trends is conditional on survival of the company.
+
+Ran the financials loader and only got 5-7 quarters per ticker but had expected 5 years needed to sufficient analysis. Flagged SEC EDGAR backfill as the fix. LESSON: Verify shape of data before designing analysis around it.
+
+Scoped EDGAR to US filers, TSM being international overcomplicates analysis and would add time having to parse XBRL filings, that isn't worth the tradeoff. 
+
+EDGAR returns 3 quarters/year, not always 4 due to it being embedded in annual 10-K filings. ALSO, ANSS pre-acq data is in dataset giving angle on acquisition effects
+
+Tested PatentsView API for patent ETL plan; turns out it migrated to USPTO Open Data Portal and the old endpoint redirects. Migration to ODP completed March 20, 2026. Saved myself a day of building against a dead API. Pivoting to ODP bulk downloads — stronger resume signal anyway since ODP is the new official source. Lesson: probe data sources before committing to them. Five minutes of testing > a day of debugging.
+
+[Week 1, Day 2.2]
+Built ETL targeting PatentsView PatentSearch API. First test call got DNS
+resolution failure. Investigated and discovered the API was decommissioned
+March 20, 2026, with data migrated to bulk TSV downloads on ODP.
+Pivoted same session to bulk download approach. Confirmed S3 URLs return
+200 with valid file sizes. Lesson: verify external API endpoints with a curl/HEAD request before architecting around them. Saved myself from writing a full ETL pointed at a dead host.
