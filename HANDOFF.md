@@ -325,5 +325,89 @@ Anti-patterns to avoid based on what worked vs didn't on D3:
 - ⏭ (Optional) Decide which hiring data source to investigate before D4 starts — see §11
 
 ---
+# ============================================================
+# APPEND THIS TO HANDOFF.md (after Day 3 section)
+# ============================================================
+
+## Day 4 — Hiring signals ETL (Workday)
+
+**What got built:**
+- `sql/schema.sql` — added `hiring_signals` table. PK is `(job_id, snapshot_date)`
+  so the same posting captured on different days gets multiple rows (lets us
+  measure "days open" via `MAX - MIN` per job). Category column nullable on
+  ingest, populated later by classifier OR by faceting (see NVDA note below).
+- `etl/load_hiring.py` — config-driven loader. Each ticker has an entry
+  declaring its ATS platform. Non-Workday entries are `enabled=False` stubs.
+  Day 4 ran 3 of 12 tickers (NVDA, CDNS, MRVL — confirmed Workday tenants).
+- `etl/detect_ats.py` — throwaway diagnostic that fingerprinted each careers
+  site to identify the ATS in use. Can delete or keep for reference.
+
+**Data shape (post-load):**
+- NVDA: 2,639 job postings, 14 categories (Engineering 69%, Sales 11%, …)
+- CDNS: 628 postings, category NULL (not faceted)
+- MRVL: 624 postings, category NULL (not faceted)
+- Total: 3,891 rows, snapshot_date = today
+
+**The NVDA cap problem — biggest learning of the day:**
+Workday's job-search API silently caps `total` at 2000 globally. Naive run
+returned exactly 2000 NVDA jobs and we almost shipped that. The fix: query
+per-facet and union. NVIDIA's tenant exposes NO location facet (only
+`jobFamilyGroup`, `workerSubType`, `timeType`, `locationMainGroup` with 3
+useless values), so we facet on `jobFamilyGroup` instead. Side benefit: this
+populates `category` for NVDA for free, no keyword classifier needed.
+
+Real NVDA total = 2,639 (32% more than the capped 2,000 we would have shipped).
+
+**Interview moments:**
+1. "Workday's career API silently caps results at 2000. Caught this because
+   NVDA returned exactly 2000 — round numbers in scraped data are a smell.
+   Fixed by faceted pagination."
+2. "NVIDIA's tenant doesn't expose location facets — only job categories.
+   Turned the constraint into a feature: faceting on category bypasses the
+   cap AND gives us role classification for free."
+3. "NVIDIA's hiring mix is 69% Engineering / 11% Sales. Unusually
+   engineer-heavy vs typical tech (40-50% eng) — reflects an R&D-led org
+   where product = engineering."
+4. "Built the loader as per-ATS modules (Workday today; iCIMS, Avature,
+   Oracle stubbed for Day 5). Adding a platform is one new fetcher function,
+   not a rewrite."
+
+**Known data-quality compromises (record now, fix later):**
+- `posted_date` is approximate. Workday returns "Posted N Days Ago" as a string;
+  "Posted 30+ Days Ago" collapses to exactly 30 days. ~30% of postings have
+  imprecise posted_date as a result. Acceptable for current-period analysis;
+  flag if doing precise tenure stats.
+- "6 Locations" / "2 Locations" strings appear in the `location` column when
+  a single posting is open in >5 cities. Full city list would require a
+  per-job detail API call — deferred.
+- CDNS and MRVL have NULL category. Will populate via keyword classifier on
+  Day 5 or fold into a later pass.
+- Hiring data is snapshot-forward only. Historical hiring (pre-today) is NOT
+  reconstructible from this source. Cross-source joins to patents/financials
+  use the overlap window (today onward).
+
+**Day 5 plan:**
+- Add iCIMS fetcher → enables AMD
+- Add Avature fetcher → enables SNPS (and rolls in ANSS)
+- Verify remaining Workday tenants (QCOM, INTC, AVGO, MU) and turn them on
+- Keyword classifier for CDNS/MRVL `category` column
+- Begin financials ETL (yfinance) if time permits
+
+**Loaders inventory (cumulative):**
+- `load_companies.py`, `load_patents.py`, `load_hiring.py` — all use
+  ON CONFLICT DO NOTHING and are safe to re-run.
+
+# ============================================================
+# SUGGESTED COMMIT MESSAGE
+# ============================================================
+
+# Day 4: Hiring signals ETL (Workday, 3 tickers)
+#
+# - Add hiring_signals table with (job_id, snapshot_date) PK
+# - load_hiring.py: config-driven multi-ATS loader, Workday handler complete
+# - 3,891 rows loaded for NVDA / CDNS / MRVL
+# - Faceted-pagination workaround for Workday's 2000-result cap
+# - NVDA category mix captured via jobFamilyGroup facet (Engineering 69%)
+# - 9 non-Workday tickers stubbed for Day 5+
 
 **End of handoff. Next session: paste this entire document at the start of the new chat.**
