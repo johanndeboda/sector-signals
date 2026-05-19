@@ -1,5 +1,5 @@
 # Interview Moments — Running log
-Notes-to-self for interview anecdotes. 2 sentences max per entry.
+Notes-to-self for interview anecdotes.
 ## Week 1
 - [DAY 1]:
 
@@ -25,3 +25,18 @@ resolution failure. Investigated and discovered the API was decommissioned
 March 20, 2026, with data migrated to bulk TSV downloads on ODP.
 Pivoted same session to bulk download approach. Confirmed S3 URLs return
 200 with valid file sizes. Lesson: verify external API endpoints with a curl/HEAD request before architecting around them. Saved myself from writing a full ETL pointed at a dead host.
+
+TOTAL: 2 pivots in 1 day, real data engineering means treating data sources as moving targets, not stationary fixed targets.
+
+## Week 1
+- [Day 3] : 
+
+Built assignee mapping for 12 semi tickers. Found Marvell uses 14 distinct legal entity names across Bermuda, Singapore, Israel — typical of pre-2018 semi industry IP-holding structures designed for international tax optimization. Naive analysis treating "Marvell" as one name would have produced confused results; explicit subsidiary mapping handles it cleanly.
+
+Made sure to run exploration on data to ensure than to guess, then query after
+
+LOADERS utilize ON CONFLICT DO NOTHING
+
+## Week 1
+- [Day 4] : 
+

@@ -74,3 +74,43 @@ INSERT INTO companies (ticker, name, segment, hq_country) VALUES
     ('TXN',  'Texas Instruments',      'IDM',     'USA'),
     ('TSM',  'Taiwan Semiconductor',   'Foundry', 'Taiwan')
 ON CONFLICT (ticker) DO NOTHING;
+
+-- ============================================================
+-- hiring_signals: one row per (job_posting, snapshot_date)
+-- ============================================================
+-- Why this shape:
+-- - PK is (job_id, snapshot_date): same job posting captured on different days
+--   gets multiple rows. Lets us track "first seen" / "last seen" / posting age.
+-- - job_id comes from the ATS (Workday uses an externalPath like "R-12345").
+--   Stable per company within one ATS, but NOT globally unique across companies,
+--   so the PK includes ticker implicitly via job_id pattern (we'll prefix it).
+-- - captured_date is when WE scraped it. posted_date is when the company listed it.
+--   These differ when we discover a job that's been open for weeks.
+-- - location stored as raw string for now; parsing into city/country is a Week 2 job.
+-- - category is our derived bucket (engineering / sales / G&A / etc.) — populated
+--   later by a keyword classifier. NULL on ingest is fine.
+-- - ats column lets us know which scraper produced this row, useful for debugging
+--   and for tracking if a company migrates ATS platforms mid-project.
+
+CREATE TABLE IF NOT EXISTS hiring_signals (
+    job_id         TEXT        NOT NULL,
+    ticker         TEXT        NOT NULL REFERENCES companies(ticker),
+    snapshot_date  DATE        NOT NULL,        -- the scrape date
+    title          TEXT        NOT NULL,
+    location       TEXT,                        -- raw, e.g. "Santa Clara, CA, USA"
+    posted_date    DATE,                        -- when the company posted it (best-effort)
+    category       TEXT,                        -- derived later, NULL on ingest
+    ats            TEXT        NOT NULL,        -- 'workday', 'icims', 'avature', etc.
+    job_url        TEXT,                        -- direct apply link, useful for spot-checks
+    captured_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (job_id, snapshot_date)
+);
+
+-- Indexes for the queries we'll actually run:
+-- - "How many openings did NVDA have on this date?" → ticker + snapshot_date
+-- - "Show me all postings ever seen for AMD" → ticker
+CREATE INDEX IF NOT EXISTS idx_hiring_ticker_date
+    ON hiring_signals (ticker, snapshot_date);
+
+CREATE INDEX IF NOT EXISTS idx_hiring_ticker
+    ON hiring_signals (ticker);
