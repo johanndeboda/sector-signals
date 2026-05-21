@@ -74,7 +74,14 @@ COMPANIES_CONFIG = {
     "MU":   {"ats": "workday", "enabled": False, "host": None, "tenant": None, "site": None},
 
     # ---- OTHER ATS (Day 5+) ----
-    "AMD":  {"ats": "icims",      "enabled": False},
+    # AMD's public careers site (careers.amd.com) is a Jibe-fronted portal.
+    # iCIMS is still the back-end ATS (apply_url + ats_code in the feed both
+    # say icims), but the public job LISTINGS are served by Jibe's own API.
+    # We fetch the Jibe feed because that's the source of truth for what AMD
+    # actually advertises. Day 5 plan said "icims" before the migration was
+    # known — see HANDOFF. ats tag = "jibe" (what the fetcher talks to).
+    "AMD":  {"ats": "jibe", "enabled": True,
+             "host": "careers.amd.com"},
     "SNPS": {"ats": "avature",    "enabled": False},
     "ANSS": {"ats": "skip",       "enabled": False, "note": "Acquired by SNPS Jul 2025"},
     "TXN":  {"ats": "oracle_hcm", "enabled": False},
@@ -245,6 +252,109 @@ def _parse_workday_posted(s, snapshot: date):
     return None
 
 # ============================================================
+# JIBE FETCHER  (AMD — added Day 5)
+# ============================================================
+# Jibe powers careers.amd.com. The site's own job list comes from:
+#   GET https://{host}/api/jobs?page=N&sortBy=relevance&descending=false&internal=false
+# Response shape:
+#   {"jobs": [{"data": {<job>}}, ...], "totalCount": <int>, "count": <int>}
+# Pagination: `page` is 1-indexed; the site serves 10 jobs/page. Paginate
+# until we've collected `totalCount` jobs (or a page comes back empty).
+#
+# No auth, no faceting workaround needed: totalCount (1291 at time of
+# writing) is well-defined and not a suspicious round cap like Workday's
+# 2000 — straight pagination returns the full set. We still guard against
+# a runaway loop with a hard page ceiling.
+
+JIBE_PAGE_SIZE = 10        # what the site itself requests
+JIBE_MAX_PAGES = 1000      # safety ceiling: 1000 * 10 = 10k jobs
+
+def _parse_jibe_posted(s, snapshot: date):
+    """Jibe's posted_date is a real ISO timestamp, e.g.
+    "2026-05-21T01:15:00+0000" — unlike Workday's relative phrases.
+    Return just the date component, or None if unparseable."""
+    if not s:
+        return None
+    try:
+        # fromisoformat doesn't accept "+0000"; normalize to "+00:00".
+        iso = s.strip()
+        if len(iso) >= 5 and iso[-5] in "+-" and iso[-3] != ":":
+            iso = iso[:-2] + ":" + iso[-2:]
+        return datetime.fromisoformat(iso).date()
+    except (ValueError, TypeError):
+        return None
+
+def fetch_jibe_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
+    """Yield normalized job dicts from a Jibe-fronted careers site.
+
+    Same return contract as fetch_workday_jobs: dicts with keys
+    job_id, ticker, snapshot_date, title, location, posted_date,
+    category, ats, job_url.
+    """
+    host = cfg["host"]
+    base = f"https://{host}/api/jobs"
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    snapshot = date.today()
+    params = {"sortBy": "relevance", "descending": "false", "internal": "false"}
+
+    page = 1
+    total = None
+    seen = 0
+
+    while page <= JIBE_MAX_PAGES:
+        params["page"] = page
+        r = requests.get(base, headers=headers, params=params, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+
+        if total is None:
+            total = data.get("totalCount", data.get("count", 0))
+            print(f"    [all] totalCount={total}")
+
+        jobs = data.get("jobs", [])
+        if not jobs:
+            break
+
+        for item in jobs:
+            # Each list item wraps the real job under a "data" key.
+            j = item.get("data", {})
+            raw_id = j.get("req_id") or j.get("slug") or ""
+            if not raw_id:
+                continue  # skip anything we can't key on
+
+            # Prefer the cleaned categories[].name ("Engineering") over the
+            # top-level `category` list whose values have a leading space.
+            cats = j.get("categories") or []
+            category = cats[0].get("name") if cats else None
+
+            # job_url: the public careers.amd.com page, from canonical_url.
+            url = (j.get("meta_data", {}) or {}).get("canonical_url")
+            if not url:
+                url = f"https://{host}/jobs/{raw_id}"
+
+            yield {
+                "job_id":        f"{ticker}:{raw_id}",
+                "ticker":        ticker,
+                "snapshot_date": snapshot,
+                "title":         (j.get("title") or "").strip()[:500],
+                "location":      (j.get("full_location") or "").strip()[:300],
+                "posted_date":   _parse_jibe_posted(j.get("posted_date"), snapshot),
+                "category":      (category or "").strip()[:200] or None,
+                "ats":           "jibe",
+                "job_url":       url,
+            }
+            seen += 1
+
+        if total and seen >= total:
+            break
+        page += 1
+        time.sleep(SLEEP_BETWEEN_PAGES)
+    else:
+        # Loop exited via the page ceiling, not a natural stop — warn.
+        print(f"  {ticker}: WARNING — hit JIBE_MAX_PAGES ({JIBE_MAX_PAGES}). "
+              "Job count may be incomplete.")
+
+# ============================================================
 # DB INSERT
 # ============================================================
 def deduplicate_jobs(rows: list[dict]) -> list[dict]:
@@ -289,6 +399,19 @@ def insert_jobs(conn, rows: list[dict]) -> int:
 
 
 # ============================================================
+# FETCHER DISPATCH
+# ============================================================
+# Day 4 hardcoded fetch_workday_jobs() inside main(), so "add a platform"
+# really meant "edit main()". This registry makes the original intent real:
+# a fetcher is registered by its `ats` name, main() looks it up. Adding a
+# platform = write the function + add one line here. All fetchers share the
+# same contract: fetch(ticker, cfg) -> iterator of 9-key job dicts.
+FETCHERS = {
+    "workday": fetch_workday_jobs,
+    "jibe":    fetch_jibe_jobs,   # AMD — added Day 5
+}
+
+# ============================================================
 # MAIN
 # ============================================================
 def main():
@@ -308,9 +431,15 @@ def main():
             print(f"  {ticker}: skipped (ats={cfg['ats']}, not yet implemented)")
             continue
 
+        fetcher = FETCHERS.get(cfg["ats"])
+        if fetcher is None:
+            print(f"  {ticker}: no fetcher registered for ats='{cfg['ats']}' "
+                  "— skipping")
+            continue
+
         print(f"\nFetching {ticker} ({cfg['ats']})...")
         try:
-            rows = list(fetch_workday_jobs(ticker, cfg))
+            rows = list(fetcher(ticker, cfg))
             rows = deduplicate_jobs(rows)
             n = insert_jobs(conn, rows)
             total_submitted += n

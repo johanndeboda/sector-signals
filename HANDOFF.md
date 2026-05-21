@@ -1,6 +1,6 @@
 # Sector Signals — Handoff Document
-**Last updated:** end of Week 1, Day 3 (Thursday, May 14, 2026)
-**Project status:** On track. Plumbing week ~60% complete.
+**Last updated:** end of Week 1, Day 5 (Wednesday, May 20, 2026)
+**Project status:** On track. Plumbing week ~85% complete. Hiring ETL live for 4 of 12 tickers.
 
 ---
 
@@ -9,6 +9,8 @@
 This document is the single source of truth for resuming the project. The candidate (Johan) will paste this at the start of the next session. Treat sections 1-3 as **non-negotiable context** — they shape *how* you respond, not just *what* you respond about.
 
 **Key operating principle:** Johan drives interpretation, judgment, and business decisions. Claude drives plumbing, syntax, multi-step pipelines, and debugging. **Never write code Johan won't read.** When sending scripts, explicitly flag 2-3 sections worth focusing on; mark the rest as skim-only.
+
+**This is a fresh rewrite of the handoff** (previous version ended at Day 3 with a Day 4 section appended). Days 4 and 5 are now folded into the main body. Structure and voice are unchanged so it stays consistent with how the project has been run.
 
 ---
 
@@ -20,15 +22,16 @@ This document is the single source of truth for resuming the project. The candid
 - **Domain context:** Has done consulting work on Cadence (CDNS) — has real knowledge of the EDA/semiconductor industry landscape. Don't talk down on semi-industry concepts; he knows the players and the business models.
 - **Career goal:** Job search starting late 2026 (Aug-Dec). Sector Signals is portfolio centerpiece. Target roles: analyst-track positions where defending a data project in a 45-min interview is the bar.
 
-### Working style preferences (observed across this session)
+### Working style preferences (observed across sessions)
 
-- **Asks meta-questions about the work itself.** "Is this worth memorizing?" "Should I look through the code?" These signal he's actively calibrating his learning approach. Take them seriously — they're not stalling, they're optimizing.
+- **Asks meta-questions about the work itself.** "Is this worth memorizing?" "Should I look through the code?" "Should I read the earlier message first?" These signal he's actively calibrating his learning approach. Take them seriously — they're not stalling, they're optimizing.
 - **Wants reasoning, not just answers.** When Johan asks "why?" he means it. Brief explanations with concrete tradeoffs land better than hedged both-sides answers.
 - **Prefers being given a recommendation when uncertain.** Asks "what's your recommendation?" rather than "give me options." When he says he's not sure, give a clear pick with reasoning — don't fence-sit.
 - **Asks for "very briefly" when he just wants the answer.** Honor the request — give the short version first, then add context only if it serves him.
 - **Reads code at "shape and logic" level, not line-by-line.** This is the correct level for a 2nd-year MIS student. Don't push for more rigor than the task requires; trust that repetition across the project locks in patterns.
-- **Will paste error messages or terminal output for debugging.** Read carefully — every line of a stack trace matters. Identify the root cause before suggesting fixes.
-- **Honest about gaps.** Will say "not sure" or "explain again." When this happens, slow down — don't pile on more material until the prior thing clicks.
+- **Will paste error messages or terminal output for debugging.** Read carefully — every line matters. Identify the root cause before suggesting fixes. (On Day 5 he pasted SQL into PowerShell and got a `CommandNotFoundException` — the lesson there is that he may not always know which environment a command belongs in. Spell it out: "this goes in psql, not PowerShell.")
+- **Honest about gaps.** Will say "not sure," "explain again," or "you are supposed to guide me." When this happens, slow down — don't pile on more material until the prior thing clicks. **He expects Claude to lead on planning** (e.g. "what is Day 6") rather than asking him to define the work.
+- **Can be overwhelmed by long multi-part answers.** On Day 5 he explicitly said Claude was giving "so much information." Default to one step at a time. Don't dump the whole plan; give the next action, wait, then continue.
 
 ### Communication norms
 
@@ -37,6 +40,7 @@ This document is the single source of truth for resuming the project. The candid
 - Avoid emoji unless he uses them first.
 - He's a good sport about mistakes (his or Claude's). Don't grovel over typos; acknowledge briefly and move on.
 - Has a sense of humor but the project is serious work — match tone to context.
+- **One question at a time.** When elicitation is needed, ask a single clear thing, ideally with `ask_user_input_v0`. Several questions at once causes friction.
 
 ---
 
@@ -46,7 +50,7 @@ This document is the single source of truth for resuming the project. The candid
 
 **The "semi 12":** AMD, ANSS, AVGO, CDNS, INTC, MRVL, MU, NVDA, QCOM, SNPS, TSM, TXN.
 
-**Time window:** patents and financials cover 2021-01-01 → present (5 years).
+**Time window:** patents and financials cover 2021-01-01 → present (5 years). Hiring is snapshot-forward only (today onward — see §6).
 
 **Why these 12:** EDA (CDNS, SNPS, ANSS), GPU/AI (NVDA, AMD), wireless/IP-licensing (QCOM, AVGO, MRVL), CPU/IDM (INTC), memory (MU), analog/embedded (TXN), foundry (TSM). Covers the major business models in semis.
 
@@ -56,7 +60,7 @@ This document is the single source of truth for resuming the project. The candid
 
 **Candidate drives on:** hypotheses, interpretation, business judgment, decisions about what to include/exclude, validation of outputs, picking which observations are interview-worthy.
 
-**Claude drives on:** boilerplate code, SQL syntax, library quirks, multi-step pipelines, debugging plumbing.
+**Claude drives on:** boilerplate code, SQL syntax, library quirks, multi-step pipelines, debugging plumbing, **and planning the next session's scope** (Johan expects Claude to propose what each day's work should be).
 
 ### Code-reading discipline (very important)
 
@@ -69,20 +73,16 @@ Johan reads every script before running it. Not line-by-line — at "what is thi
 
 ### Decision-making pattern
 
-When a choice involves judgment (e.g. which assignee variants to include, whether to include a deprecated ticker), do this:
+When a choice involves judgment, do this:
 1. State the tradeoff briefly
 2. Recommend a default with reasoning
 3. Use `ask_user_input_v0` for the actual decision — let Johan choose with eyes open
 4. If he says "your recommendation" or "I'm not sure," then *commit* to a pick with reasoning. Don't kick it back.
+5. If he asks "what do the options even mean," explain plainly before re-asking — don't assume the choice is self-evident.
 
 ### Interview-moment framing
 
-When the project surfaces something analytically interesting (a surprising number, a methodology choice, an anomaly, a lesson learned), name it explicitly as "interview-worthy" and draft 1-2 sentences he could use. Examples that worked this session:
-- *"NVIDIA has 10x fewer patents than Qualcomm despite 3x the market cap. Patent volume ≠ innovation value."*
-- *"Marvell uses 14 distinct legal entity names — typical of pre-2018 semi-industry IP-holding structures."*
-- *"Flagged AVGO patent count as anomalously low and added to a real investigation TODO."*
-
-The `interview_moments.md` file in the repo accumulates these. Suggest entries when relevant.
+When the project surfaces something analytically interesting (a surprising number, a methodology choice, an anomaly, a lesson learned), name it explicitly as "interview-worthy" and draft 1-2 sentences he could use. The `interview_moments.md` file in the repo accumulates these. Suggest entries when relevant.
 
 ---
 
@@ -90,55 +90,68 @@ The `interview_moments.md` file in the repo accumulates these. Suggest entries w
 
 - **OS:** Windows 11 on Dell XPS 15
 - **Editor:** VSCode (Python extension installed, venv auto-detected)
-- **Terminal:** PowerShell (not WSL — decided against WSL on D3; revisit if it becomes painful)
-- **DB:** Postgres 18, local, port 5432
+- **Terminal:** PowerShell (not WSL — decided against on D3; revisit if it becomes painful)
+- **DB:** Postgres 18, local, port 5432, database name `sector_signals`, user `postgres`
   - Binary path: `C:\Program Files\PostgreSQL\18\bin\psql.exe`
-  - PATH is **not yet configured** — needs full path to call `psql` from terminal (minor TODO)
-- **Language:** Python 3.x in venv at project root
+  - PATH is **still not configured** — must use the full path to call `psql`. To run SQL from PowerShell:
+    `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "<SQL>"`
+  - Note: raw SQL pasted directly into PowerShell will fail — it must go through `psql` or a GUI client.
+- **Language:** Python 3.x in venv at project root (`venv\Scripts\Activate.ps1`)
 - **Key libraries:** pandas, psycopg2-binary, sqlalchemy, requests, python-dotenv, yfinance
-- **DB connection:** loaded from `.env` via python-dotenv; `load_financials.py` uses SQLAlchemy, `load_patents.py` uses psycopg2 directly (different but both fine)
+- **DB connection:** loaded from `.env` via python-dotenv. `load_financials.py` uses SQLAlchemy; `load_patents.py` and `load_hiring.py` use psycopg2 directly. Both styles fine.
 
 ### Critical environment notes
 
-- **DB password was rotated on D3 end-of-session.** Verified by re-running `load_financials.py` against the new credentials. Connection works.
-- **Lesson Johan learned on D3:** never paste passwords into chats. Don't lecture about this in future sessions — he's internalized it. If a similar slip happens, briefly redirect, don't moralize.
-- **`.gitignore` correctly excludes `data/` and `.env`.** Verified clean on D3.
+- DB password was rotated on D3. Connection verified working since.
+- `.gitignore` correctly excludes `data/` and `.env`. Verified clean.
+- **`requirements.txt` has a double extension on disk: `requirements.txt.txt`.** Almost certainly a Windows "Save As" slip. Minor, but rename to `requirements.txt` so the reproducibility steps and any `pip install -r` work without surprise.
 
 ---
 
-## 5. Folder structure (as of D3)
+## 5. Folder structure (as of D5)
 
 ```
 sector-signals/
 ├── etl/
-│   ├── load_financials.py        ← Day 1: yfinance → Postgres
+│   ├── load_financials.py        ← Day 1: yfinance → Postgres (SQLAlchemy)
 │   ├── edgar_backfill.py         ← Day 2: SEC EDGAR XBRL → Postgres
-│   ├── download_patents.py       ← Day 3 NEW: streaming downloads with resume support
-│   ├── explore_assignees.py      ← Day 3 NEW: throwaway, can be deleted Week 2
-│   ├── assignee_mapping.py       ← Day 3 NEW: 95 org-name variants → 12 tickers
-│   └── load_patents.py           ← Day 3 NEW: 4-way TSV join → patents table
+│   ├── download_patents.py       ← Day 3: streaming downloads with resume support
+│   ├── explore_assignees.py      ← Day 3: throwaway exploration tool — safe to delete
+│   ├── assignee_mapping.py       ← Day 3: 95 org-name variants → 12 tickers
+│   ├── load_patents.py           ← Day 3: 4-way TSV join → patents table
+│   ├── detect_ats.py             ← Day 4: throwaway ATS-fingerprinting diagnostic
+│   ├── load_hiring.py            ← Day 4-5: config-driven multi-ATS hiring loader
+│   ├── load_hiring.day4.bak      ← Day 5: backup of pre-Jibe version — delete once D5 confirmed stable
+│   ├── test_bulk_download.py     ← small test script (Day 3 era)
+│   └── __pycache__/
 ├── sql/
-│   └── schema.sql                ← all CREATE TABLE DDL, run on Day 2
+│   └── schema.sql                ← all CREATE TABLE DDL
 ├── data/                         ← GITIGNORED, holds 4 patent TSVs (~1.7 GB)
+├── notebooks/                    ← (empty / exploratory — Week 2 will populate)
 ├── venv/
 ├── .env                          ← DB credentials (gitignored)
+├── .env.example                  ← template for .env
 ├── .gitignore
-├── requirements.txt
+├── requirements.txt.txt          ← ⚠ double extension, rename to requirements.txt
 ├── interview_moments.md          ← running log of analytical findings
+├── README.md
 └── HANDOFF.md                    ← this file
 ```
 
+Note: there are a few non-hiring loaders (`load_financials.py`, `edgar_backfill.py`) and Day-3 patent scripts. The Day 4 handoff mentioned a `load_companies.py`; no such file is on disk — companies were likely loaded via one of the existing scripts or directly. Treat the companies table as already populated and stable.
+
 ---
 
-## 6. Database state (as of D3)
+## 6. Database state (as of D5)
 
-### Schema
+### Schema (`sql/schema.sql`)
 - `companies (ticker, name, country, ...)` — 12 rows, all semi-12 tickers present
 - `financials_quarterly (ticker, quarter, revenue, rd_spend, net_income, operating_margin)` — composite PK `(ticker, quarter)`
 - `stock_prices_daily (ticker, trade_date, open, high, low, close, volume)` — composite PK `(ticker, trade_date)`
 - `patents (patent_id PK, assignee_ticker FK→companies, grant_date, title, cpc_class, inventor_count)` — **61,519 rows**
+- `hiring_signals (job_id, ticker, snapshot_date, title, location, posted_date, category, ats, job_url)` — composite PK `(job_id, snapshot_date)`. Same posting captured on different days = multiple rows, which lets us measure "days a job stays open" via `MAX - MIN`. Hiring is **snapshot-forward only** — historical hiring before the first run is not reconstructible.
 
-### Per-ticker patent counts (sanity-check reference for future re-loads)
+### Per-ticker patent counts (sanity-check reference)
 
 | Ticker | Count | Notes |
 |---|---|---|
@@ -152,262 +165,246 @@ sector-signals/
 | MRVL | 1,071 | 14 legal entity variants |
 | SNPS | 537 | EDA tools |
 | CDNS | 371 | EDA tools |
-| **AVGO** | **350** | **🚩 ANOMALY — investigate Week 2** |
-| ANSS | 132 | Got acquired by SNPS July 2025 |
+| **AVGO** | **350** | 🚩 ANOMALY — investigate Week 2 |
+| ANSS | 132 | Acquired by SNPS July 2025 |
 | **Total** | **61,519** | |
 
----
+### Hiring signal counts (as of D5 run — verified in DB)
 
-## 7. What we built on Day 3 (full detail)
+| Ticker | Count | ATS | Notes |
+|---|---|---|---|
+| NVDA | 2,655 | Workday | Faceted on `jobFamilyGroup` to beat the 2000 cap |
+| MRVL | 633 | Workday | category NULL |
+| CDNS | 626 | Workday | category NULL |
+| AMD | 1,291 | Jibe | NEW on D5 — matched the API's reported `totalCount` exactly |
+| **Total** | **5,205** | | snapshot_date = D5 |
 
-### The patents pipeline — four scripts working together
-
-**1. `etl/download_patents.py`** — fetches 4 PatentsView bulk TSVs from S3:
-- `g_patent.tsv.zip` (219 MB) — patent_id, title, grant_date
-- `g_assignee_disambiguated.tsv.zip` (342 MB) — assignee org names
-- `g_inventor_disambiguated.tsv.zip` (667 MB) — inventor records
-- `g_cpc_current.tsv.zip` (472 MB) — CPC classifications
-
-Key patterns: streaming download (chunked, flat memory), resume-on-failure via `.part` files + HTTP `Range` headers, idempotent (size-check skips completed files). Note: PatentsView migrated to `data.uspto.gov` on March 20, 2026 — legacy S3 URLs still work but may stop eventually.
-
-**2. `etl/explore_assignees.py`** — exploration tool, not production. Reads 8.6M assignee rows, runs substring search per ticker, prints top 15 variants with patent counts. Johan eyeballs output to identify real variants vs false positives. **Throwaway script** — can be deleted in Week 2.
-
-**3. `etl/assignee_mapping.py`** — curated exact-match mapping of 95 organization-name variants to 12 tickers, with documented judgment calls (see §8). Self-checks for duplicates when run directly.
-
-**4. `etl/load_patents.py`** — joins 4 TSVs, filters to 2021+ and our 12 companies, inserts into Postgres:
-- Step 1: assignee join → 252,082 unique patents mapped to tickers (108 co-assignee duplicates dropped)
-- Step 2: patent metadata join + date filter (grant_date ≥ 2021-01-01) → 61,519 patents
-- Step 3: CPC classification join (primary class, cpc_sequence=0) → 259 patents have no primary CPC (NULL is fine)
-- Step 4: inventor groupby + nunique for inventor_count
-- Step 5: psycopg2 `execute_values` batched insert with `ON CONFLICT DO NOTHING`
-- Runtime: ~22 min total on Johan's machine (inventor groupby is slowest step — predicted 3-5 min, was wrong)
-
-### Patterns Johan saw repeatedly today (worth reinforcing in future sessions)
-
-- **Substring for exploration, exact-match for production.** Loose discovery, strict production.
-- **Filter early, join late.** Date filter on `g_patent` reduced 9.4M rows → 1.7M before joining to ticker set.
-- **Idempotency via `ON CONFLICT DO NOTHING`.** Same pattern as `load_financials.py`.
-- **`nunique` vs `count`.** Distinct entities vs total rows — silent bug source.
-- **`usecols` on `pd.read_csv`.** Don't load columns you don't need.
-- **Streaming downloads.** Flat memory regardless of file size.
-- **`.part` files + atomic rename.** Same pattern as database commit.
+The other 8 tickers are stubbed in config and skipped at runtime.
 
 ---
 
-## 8. Judgment calls made on Day 3 (must defend in interviews)
+## 7. What we built on Days 1-4 (carried forward)
 
-1. **AVGO includes pre-2016 Avago Technologies entities.** Avago acquired Broadcom in 2016, kept Broadcom name, kept AVGO ticker. Avago's Singapore-based IP holding subsidiaries continued filing patents under "Avago Technologies" names for years post-merger. Including them captures full legal continuity under AVGO. Date filter handles time-window aspect downstream.
+### Days 1-3 — financials, EDGAR, and the patents pipeline
+- **D1:** `load_financials.py` — yfinance → Postgres (companies + financials).
+- **D2:** `edgar_backfill.py` — SEC EDGAR XBRL backfill; `schema.sql` created.
+- **D3:** Four-script patents pipeline — `download_patents.py` (streaming bulk TSV downloads with resume), `explore_assignees.py` (throwaway discovery tool), `assignee_mapping.py` (95 org-name variants → 12 tickers), `load_patents.py` (4-way TSV join → 61,519 patents). Runtime ~22 min.
 
-2. **INTC excludes loose "intel" substring matches.** Substring search caught 16,000+ false positives (AT&T Intellectual Property, Panasonic Intellectual Property, etc.). Production mapping uses exact names: Intel Corporation, Intel IP Corporation, Intel Mobile Communications GmbH only.
+### Day 4 — Hiring signals ETL (Workday)
+- `hiring_signals` table added to `schema.sql`.
+- `etl/load_hiring.py` built as a **config-driven multi-ATS loader.** Each ticker has a config entry declaring its ATS platform; non-Workday entries were `enabled=False` stubs.
+- `etl/detect_ats.py` — throwaway diagnostic that fingerprinted each careers site to identify its ATS.
+- Ran 3 tickers (NVDA, CDNS, MRVL — confirmed Workday tenants).
+- **The NVDA cap problem (biggest D4 learning):** Workday's job-search API silently caps `total` at 2000. NVDA returned exactly 2000 and the team almost shipped that. Fix: query per-facet and union. NVIDIA's tenant exposes no location facet, so faceting is done on `jobFamilyGroup` — which also populates `category` for free. Real NVDA total = 2,639 on D4 (2,655 on the D5 re-run).
 
-3. **ANSS is kept in the schema despite July 2025 Synopsys acquisition.** Treated as analytical case study — "company that disappeared mid-window" is interesting, not a reason to exclude.
-
-4. **MRVL lumps all 14 legal entities (Bermuda, Singapore, Israel, US subsidiaries) as one bucket.** Typical pre-2018 semi-industry IP-holding structure for tax optimization. Splitting them would obscure the operating-company view.
-
-5. **MU includes typo "Micron Technology, lnc."** (lowercase L instead of capital I). Data-entry error in PatentsView's source feed; real Micron patents miscategorized. Including catches them.
-
-6. **TSM includes garbled string "TAIWAN SEMICONDUCTOR MTAIWANANUFACTURING CO., LTD."** Same reasoning as Micron — feed corruption, real TSMC filing.
-
-7. **Co-assignee deduplication.** Patents with multiple assignees among our 12 tickers — 108 such cases — get one ticker arbitrarily (deterministic via sort). Acknowledged in code comments. Possible Week 3 sidebar on cross-company collaboration.
-
-8. **Inner join for patent metadata (drops patents with missing grant_date).** Acceptable data-quality decision: don't insert rows without a date. Left join for CPC (some patents have no primary class — NULL is fine).
+### Patterns Johan has seen repeatedly (worth reinforcing)
+- Substring for exploration, exact-match for production.
+- Filter early, join late.
+- Idempotency via `ON CONFLICT DO NOTHING` — every loader is safe to re-run.
+- `nunique` vs `count` — distinct entities vs total rows.
+- Streaming downloads + `.part` files for resumable, flat-memory fetches.
 
 ---
 
-## 9. Open questions / TODO
+## 8. What we built on Day 5 (full detail) — Hiring ETL, AMD via Jibe
+
+### The headline: the Day 4 plan said "iCIMS for AMD" — reality was more nuanced
+
+The D4 plan listed AMD as an iCIMS site. On investigation, AMD's public careers site (`careers.amd.com`) had **migrated to a Jibe-fronted portal.** iCIMS is still the back-end ATS — every job record in the feed has `ats_code: "icims"` and an `apply_url` on `*.icims.com` — but the **public job listings are served by Jibe's own API**, not the classic iCIMS portal.
+
+Decision made with Johan: target the **Jibe job feed**, because that is the source of truth for what AMD actually advertises publicly. The handler is tagged `ats="jibe"` (accurate to what the fetcher talks to), not `"icims"` (which would have been a stale label driving the data).
+
+### What got built / changed in `load_hiring.py`
+
+Four edits, ~140 lines added:
+
+1. **AMD config entry** — flipped to `enabled: True`, `ats: "jibe"`, with `host: "careers.amd.com"` and an inline comment explaining the iCIMS-vs-Jibe situation.
+2. **`fetch_jibe_jobs(ticker, cfg)`** — new fetcher. Hits `GET https://careers.amd.com/api/jobs?page=N&sortBy=relevance&descending=false&internal=false`, paginates by `page` (1-indexed, 10 jobs/page), and yields the same 9-key dict the Workday fetcher produces. Has a `JIBE_MAX_PAGES` safety ceiling.
+3. **`FETCHERS` registry** — maps `ats` name → fetcher function (`{"workday": ..., "jibe": ...}`).
+4. **`main()` dispatch fix** — see the architecture note below.
+
+### Architecture note — the D4 handoff slightly overclaimed
+
+The D4 handoff said "adding a platform is one new fetcher function, not a rewrite." That wasn't quite true: D4 had hardcoded `fetch_workday_jobs()` directly inside `main()`, so there was no dispatch layer — adding a platform would have meant editing `main()`. The D5 `FETCHERS` registry fixes this. **Now the claim holds:** the next platform genuinely is one new function + one registry line.
+
+### Why no faceting workaround was needed for AMD
+
+Unlike NVDA's suspicious 2000 cap, AMD's API returns a well-defined `totalCount` (1291) and the facet counts sum cleanly. Straight pagination returns the full set. The `JIBE_MAX_PAGES` ceiling exists only as a runaway guard.
+
+### Verified
+
+Syntax checked; transform tested offline against the real API response shape; then run live on Johan's machine. DB confirmed **AMD = 1,291 rows**, matching the API's `totalCount` exactly. End-to-end success.
+
+### Interview moments from Day 5 (add these to `interview_moments.md`)
+
+1. "AMD's careers plan said 'iCIMS' — but mid-build I found AMD had migrated to a Jibe-fronted careers site. The ATS label in the project config no longer matched reality. Verified the actual endpoint before writing the fetcher rather than trusting the plan."
+2. "Jibe's posted_date is a real ISO timestamp — much higher quality than Workday's relative phrasing ('Posted 30+ Days Ago'). AMD's hiring data has precise posting dates; the Workday tickers don't."
+3. "Refactored the loader to a fetcher registry so the original 'add a platform = one function' design goal actually became true — the Day 4 version still had the dispatch hardcoded."
+
+### Known data-quality notes for hiring (carried forward + new)
+
+- **Workday `posted_date` is approximate** — "Posted 30+ Days Ago" collapses to exactly 30 days. ~30% of Workday postings imprecise. AMD/Jibe postings, by contrast, have exact dates.
+- **"N Locations" strings** appear in the Workday `location` column when a posting spans >5 cities. Not present in the AMD/Jibe data (Jibe gives a clean `full_location`).
+- **CDNS and MRVL have NULL `category`** — never faceted, no classifier run yet.
+- The `insert_jobs` function returns `len(rows)` not `cur.rowcount` — this sidesteps the same batched-insert rowcount bug noted for `load_patents.py` (see §10). "Submitted" counts rows sent to INSERT, not new rows after `ON CONFLICT` skips.
+
+---
+
+## 9. Judgment calls on Day 3 (still must defend in interviews)
+
+Unchanged from prior handoff — kept here for completeness:
+
+1. **AVGO includes pre-2016 Avago Technologies entities** (legal continuity under the AVGO ticker post-merger).
+2. **INTC excludes loose "intel" substring matches** (16,000+ false positives like "AT&T Intellectual Property"). Exact names only.
+3. **ANSS kept in schema despite July 2025 Synopsys acquisition** — treated as a "company that disappeared mid-window" case study.
+4. **MRVL lumps all 14 legal entities as one bucket** (pre-2018 IP-holding structure).
+5. **MU includes the typo "Micron Technology, lnc."** (lowercase L — feed data-entry error).
+6. **TSM includes a garbled "TAIWAN SEMICONDUCTOR MTAIWANANUFACTURING..." string** (feed corruption, real filing).
+7. **Co-assignee deduplication** — 108 patents with ≥2 of our tickers get one ticker deterministically.
+8. **Inner join for patent metadata** (drop rows with no grant_date); left join for CPC (NULL class is fine).
+
+### Day 5 judgment call (new)
+
+9. **AMD hiring data is sourced from the Jibe public feed, not the iCIMS back-end API**, and tagged `ats="jibe"`. Rationale: the Jibe feed is what AMD shows the public; it's the correct source of truth for "what is AMD hiring for." The iCIMS label from the original plan describes the back-end applicant-tracking system, not the public listing layer.
+
+---
+
+## 10. Open questions / TODO
 
 | Item | Status | Notes |
 |---|---|---|
-| **AVGO patent count anomaly** | 🚩 NEW from D3 | Only 350 patents in window — implausibly low for one of the most patent-heavy semi companies. Likely a post-2021 IP-holding entity not in `assignee_mapping.py`. Investigate Week 2 by re-running `explore_assignees.py` with broader substring or checking PatentsView forum for known re-org. |
-| Q4 financials gap (10-K vs 10-Q) | Known issue from D2 | Q4 financials live in 10-K filings; current EDGAR script only pulls 10-Q. Fix Week 2 by adding 10-K parsing. |
-| Add `C:\Program Files\PostgreSQL\18\bin` to PATH | Quality-of-life | 60-second fix. Avoids typing full path to `psql.exe`. |
-| `cur.rowcount` logging bug in `load_patents.py` | Cosmetic | After batched `execute_values`, `cur.rowcount` only reports last batch. Showed "Inserted 19 new rows" when 61,519 actually landed. Fix when convenient. |
-| Co-assigned patents | Logged, not analyzed | 108 patents in our universe have ≥2 of our 12 tickers as co-assignees. Possible Week 3 sidebar (cross-company collaboration signal). |
-| Delete `explore_assignees.py` from repo | Cleanup | Throwaway exploration script. Was useful for D3, no longer needed. Delete in Week 2 cleanup pass. |
+| **AVGO patent count anomaly** | 🚩 Open from D3 | Only 350 patents in window — implausibly low. Likely a post-2021 IP-holding entity missing from `assignee_mapping.py`. Investigate Week 2. |
+| Q4 financials gap (10-K vs 10-Q) | Open from D2 | Q4 financials live in 10-K filings; EDGAR script only pulls 10-Q. Fix Week 2. |
+| `requirements.txt.txt` double extension | New, trivial | Rename to `requirements.txt`. |
+| Delete `load_hiring.day4.bak` | New cleanup | Backup of pre-Jibe loader. Safe to delete now that D5 is verified — or keep one more session, then remove. |
+| `cur.rowcount` logging bug in `load_patents.py` | Cosmetic | After batched `execute_values`, `cur.rowcount` only reports the last batch. `load_hiring.py` already avoids this by logging `len(rows)`; `load_patents.py` still has it. Fix when convenient. |
+| Add Postgres `bin` to PATH | Quality-of-life | Lets you call `psql` without the full path. 60-second fix. |
+| Delete `explore_assignees.py` | Cleanup | Throwaway D3 exploration script. Remove in a Week 2 cleanup pass. |
+| CDNS / MRVL NULL `category` | Open | Needs a keyword classifier, or fold into a later pass. Deferred from D4 and D5. |
+| Co-assigned patents | Logged, not analyzed | 108 patents with ≥2 of our tickers as co-assignees. Possible Week 3 sidebar. |
 
 ---
 
-## 10. Roadmap (remaining)
+## 11. Roadmap (remaining)
 
-### Week 1 — plumbing (current)
-- ✅ D1: Postgres setup + companies + financials loader
-- ✅ D2: EDGAR backfill + schema for patents table
-- ✅ D3: Patents ETL end-to-end (downloads → mapping → loader → Postgres)
-- ⏭ **D4 (next session): Hiring signals ETL** — see §11
-- D5: News/qualitative data ETL + Week 1 wrap
+### Week 1 — plumbing (current, ~85% done)
+- ✅ D1: Postgres + companies + financials loader
+- ✅ D2: EDGAR backfill + patents schema
+- ✅ D3: Patents ETL end-to-end
+- ✅ D4: Hiring ETL — Workday handler, 3 tickers (NVDA, CDNS, MRVL)
+- ✅ D5: Hiring ETL — Jibe handler, AMD enabled; fetcher-registry refactor
+- ⏭ **D6 (next session): enable the remaining Workday tickers** — see §12
 
 ### Week 2 — analytical layer
-- Reusable SQL views (e.g. `v_patents_quarterly` aggregated counts per ticker per quarter)
+- Reusable SQL views (e.g. `v_patents_quarterly`, `v_hiring_by_ticker`)
 - First exploratory notebook: cross-source correlation checks
-- **Re-investigate AVGO patent gap (see §9)**
+- Re-investigate AVGO patent gap
 - Fix Q4 financials gap by parsing 10-Ks
+- Cleanup pass: delete throwaway scripts, fix `requirements.txt` name
 
 ### Week 3 — first analyses
 - 3-5 driving analytical questions with clean charts
 - Cross-source observations (e.g. "do hiring spikes precede patent surges?")
 
-### Week 4-5
+### Weeks 4-6
 - Claude API integration for news summarization
 - Comparative analyses across tickers
-
-### Week 6
 - GitHub Actions for nightly refresh (all loaders idempotent — designed for this)
 - Public-ready write-up + portfolio README
 
----
-
-## 11. Next session plan (Week 1 Day 4) — START HERE
-
-**Theme:** Hiring signals ETL. Goal: produce a `hiring_signals` table with job-posting counts per ticker per time period.
-
-### First decision of the session: which data source?
-
-| Source | Pros | Cons |
-|---|---|---|
-| LinkedIn (scraped) | Best signal (company-level, real-time) | ToS issues; requires proxy/scraper; fragile |
-| BLS QCEW | Government, clean, free | ~5 month lag; industry-level not company-level |
-| Indeed/Glassdoor | Decent signal | Same scraping concerns as LinkedIn |
-| Revelio Labs API | Clean, commercial-grade, company-level | Paid (not viable for student project) |
-| LinkedIn via proxy service (e.g. Bright Data) | Best signal, legal-ish | Costs money |
-| Company career pages (direct) | Free, no ToS gray area, company-level | Each company's site is different — bespoke scrapers |
-
-**Recommended starting point:** scrape company career pages directly for the 12 tickers. Free, no ToS gray area, gives company-level signal. Bottleneck: each company's career site has a different structure. Discuss tradeoff with Johan at session start.
-
-### Plan: ~2 hours
-
-1. (15 min) Discuss data source tradeoffs with Johan, pick one with him
-2. (10 min) Define `hiring_signals` table schema, add to `sql/schema.sql`, create table
-3. (60 min) Write loader script following pattern from `load_patents.py`
-4. (20 min) Run it, sanity-check, investigate anomalies
-5. (15 min) Update HANDOFF.md, commit
-
-### Pre-session recommendation (10 min, optional)
-
-Johan should skim `etl/load_patents.py` one more time — D4's loader will mirror its structure (read source → filter → transform → insert with conflict handling).
+### Remaining ATS handlers (one per future day, after D6)
+- **SNPS — Avature.** Needs a new fetcher (like the Jibe work). ANSS may roll in here since it was acquired by Synopsys.
+- **TXN — Oracle HCM.** Needs a new fetcher.
+- **TSM — unknown ATS.** Needs investigation first (run `detect_ats.py` or the Network-tab method), then a fetcher.
 
 ---
 
-## 12. Reproducibility checklist (for "rebuild from scratch" scenarios)
+## 12. Next session plan (Week 1 Day 6) — START HERE
+
+**Theme:** Enable the four suspected-Workday tickers — **QCOM, INTC, AVGO, MU.**
+
+**Why this is the right next step:** these four need **zero new code.** The Workday fetcher already exists and is proven. All that's required is filling in the four `enabled=False` config stubs in `load_hiring.py` with the correct `host`, `tenant`, and `site` values. It's the highest-payoff, lowest-risk move available — four more companies go live for an afternoon of config, no fetcher to write or debug. The harder handlers (Avature, Oracle, TSM-unknown) are each better as their own dedicated day afterward.
+
+**The skill involved** is the same one used on D5 to find AMD's endpoint: open each company's careers page, read the ATS coordinates out of the URL / network traffic.
+
+### Plan: ~1.5 hours
+
+1. **(10 min)** Re-orient: skim `load_hiring.py`, look at the four stub entries (`QCOM`, `INTC`, `AVGO`, `MU` — all currently `"host": None, "tenant": None, "site": None`).
+2. **(40 min)** For each of the four tickers, find its Workday coordinates. A Workday careers URL looks like `https://{tenant}.{pod}.myworkdayjobs.com/{site}` — e.g. NVDA's is `nvidia.wd5.myworkdayjobs.com` / tenant `nvidia` / site `NVIDIAExternalCareerSite`. Open each company's careers page, read the three values from the URL, fill the config. Confirm each is actually on Workday first — if any isn't, leave it stubbed and note it (this would itself be an interview moment, à la AMD/Jibe).
+3. **(10 min)** Check whether any of the four will hit the 2000 cap. If a ticker's true posting count is near/over 2000, set `force_faceted: True` for it (QCOM and INTC are large companies — likely candidates). NVDA's config is the worked example to copy.
+4. **(15 min)** Run `python etl\load_hiring.py`, watch the four new sections. For any that prints a `WARNING — total=... hit the 2000 cap`, add `force_faceted` and re-run.
+5. **(10 min)** Verify in the DB:
+   `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "SELECT ticker, COUNT(*) FROM hiring_signals WHERE snapshot_date = CURRENT_DATE GROUP BY ticker;"`
+   Expect rows for all 8 enabled tickers (NVDA, CDNS, MRVL, AMD + the 4 new).
+6. **(10 min)** Update HANDOFF.md, log any interview moments, commit.
+
+### Decision to surface at session start
+
+Whether to also write the **keyword classifier for CDNS / MRVL `category`** in the same session, or defer it. Recommendation: defer — D6 is cleanest as a focused "enable Workday tickers" day. The classifier is a different kind of task and can be its own short session.
+
+### Pre-session note
+
+No prep strictly needed. If Johan wants, he can pre-open the four careers pages (qualcomm, intel, broadcom, micron) and have the URLs ready — but Claude can also walk him through finding them live.
+
+---
+
+## 13. Reproducibility checklist (for "rebuild from scratch" scenarios)
 
 1. Clone repo
 2. `python -m venv venv && venv\Scripts\Activate.ps1`
-3. `pip install -r requirements.txt`
-4. Create `.env` from `.env.template` (template needs to be created — TODO)
+3. `pip install -r requirements.txt` (fix the `.txt.txt` filename first)
+4. Create `.env` from `.env.example`
 5. `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -f sql/schema.sql`
 6. `python etl/load_financials.py`
 7. `python etl/edgar_backfill.py`
 8. `python etl/download_patents.py` (~15 min download)
-9. `python etl/load_patents.py` (~22 min load)
-10. Verify: `SELECT COUNT(*) FROM patents;` should return **61,519** (give or take new patents granted since D3)
+9. `python etl/load_patents.py` (~22 min load) — verify `SELECT COUNT(*) FROM patents;` ≈ 61,519
+10. `python etl/load_hiring.py` (~2-3 min; AMD section alone is ~1 min) — verify per-ticker counts in `hiring_signals`
+
+Note: hiring counts will differ from the figures in §6 on any later run, because job postings change daily. That's expected — `hiring_signals` is a forward-accumulating snapshot table.
 
 ---
 
-## 13. Specific behaviors next-session Claude should NOT do
+## 14. Specific behaviors next-session Claude should NOT do
 
-Anti-patterns to avoid based on what worked vs didn't on D3:
-
-- ❌ Don't write code without flagging which sections matter to read. Johan will read everything if you don't direct his attention — wastes 30-50 min.
+- ❌ Don't write code without flagging which sections matter to read. Johan will read everything otherwise — wastes 30-50 min.
 - ❌ Don't fence-sit when Johan asks for a recommendation. If he says "your call," pick one with reasoning.
-- ❌ Don't ask 5 clarifying questions at once. One at a time, address ambiguity in answer first.
-- ❌ Don't use `ask_user_input_v0` for things Johan has already told you. Read this handoff carefully.
-- ❌ Don't lecture about discipline (passwords, git, etc.) more than once per issue. Mention, move on, trust him to internalize.
-- ❌ Don't predict runtimes too precisely. Day 3 patents load was 22 min, predicted 3-5. Better to say "could be 5-30 min depending on your disk."
-- ❌ Don't bury the lede. When Johan asks "very briefly" or "what does X do," give the answer in sentence 1, context in sentence 2+.
-- ❌ Don't write placeholder code Johan will run verbatim ("cd path\to\sector-signals"). Either give a real path or make it obvious it's a placeholder.
+- ❌ Don't ask multiple clarifying questions at once. One at a time.
+- ❌ Don't dump a whole multi-step plan in one message. Give the next step, wait, continue. (Johan flagged "so much information" on D5.)
+- ❌ Don't use `ask_user_input_v0` for things Johan has already told you, or re-ask a question he hasn't actually answered yet (a tool may echo a selection back — confirm he really chose).
+- ❌ Don't assume Johan knows which environment a command belongs to. Say explicitly "this is SQL, run it in psql" vs "this is a PowerShell command."
+- ❌ Don't make Johan define the next day's scope — he expects Claude to propose it. Bring a plan; let him approve or adjust.
+- ❌ Don't lecture about discipline more than once per issue.
+- ❌ Don't predict runtimes too precisely. Give ranges.
+- ❌ Don't bury the lede. When Johan asks "very briefly," answer in sentence 1.
+- ❌ Don't write placeholder paths Johan will run verbatim. Use real paths or make the placeholder obvious.
 
 ---
 
-## 14. Things to do BEFORE next session (Johan)
+## 15. Things to do BEFORE next session (Johan)
 
-- ✅ DB password rotated (done D3 evening)
-- ⏭ Commit Day 3 work: `git add etl/ HANDOFF.md && git commit -m "Week 1 Day 3: Complete patents ETL" && git push`
-- ⏭ (Optional) Add Postgres bin to PATH for quality-of-life
-- ⏭ (Optional) Decide which hiring data source to investigate before D4 starts — see §11
+- ⏭ Commit Day 5 work: `git add etl/ HANDOFF.md interview_moments.md && git commit -m "Week 1 Day 5: Hiring ETL — AMD via Jibe, fetcher registry" && git push`
+- ⏭ Add the three Day 5 interview moments to `interview_moments.md` (text in §8).
+- ⏭ (Optional, trivial) Rename `requirements.txt.txt` → `requirements.txt`.
+- ⏭ (Optional) Delete `etl/load_hiring.day4.bak` now that D5 is verified.
+- ⏭ (Optional) Add `C:\Program Files\PostgreSQL\18\bin` to PATH.
 
 ---
-# ============================================================
-# APPEND THIS TO HANDOFF.md (after Day 3 section)
-# ============================================================
 
-## Day 4 — Hiring signals ETL (Workday)
+## Suggested commit message for Day 5
 
-**What got built:**
-- `sql/schema.sql` — added `hiring_signals` table. PK is `(job_id, snapshot_date)`
-  so the same posting captured on different days gets multiple rows (lets us
-  measure "days open" via `MAX - MIN` per job). Category column nullable on
-  ingest, populated later by classifier OR by faceting (see NVDA note below).
-- `etl/load_hiring.py` — config-driven loader. Each ticker has an entry
-  declaring its ATS platform. Non-Workday entries are `enabled=False` stubs.
-  Day 4 ran 3 of 12 tickers (NVDA, CDNS, MRVL — confirmed Workday tenants).
-- `etl/detect_ats.py` — throwaway diagnostic that fingerprinted each careers
-  site to identify the ATS in use. Can delete or keep for reference.
+```
+Week 1 Day 5: Hiring ETL — AMD via Jibe + fetcher registry
 
-**Data shape (post-load):**
-- NVDA: 2,639 job postings, 14 categories (Engineering 69%, Sales 11%, …)
-- CDNS: 628 postings, category NULL (not faceted)
-- MRVL: 624 postings, category NULL (not faceted)
-- Total: 3,891 rows, snapshot_date = today
+- Discovered AMD's careers site migrated to a Jibe front-end;
+  iCIMS remains the back-end ATS but Jibe serves public listings
+- Add fetch_jibe_jobs() targeting careers.amd.com/api/jobs
+- Add FETCHERS registry; main() now dispatches by ats name
+  (Day 4 had the Workday fetcher hardcoded)
+- AMD enabled: 1,291 postings loaded, matches API totalCount
+- 7 non-Workday/Jibe tickers still stubbed
+```
 
-**The NVDA cap problem — biggest learning of the day:**
-Workday's job-search API silently caps `total` at 2000 globally. Naive run
-returned exactly 2000 NVDA jobs and we almost shipped that. The fix: query
-per-facet and union. NVIDIA's tenant exposes NO location facet (only
-`jobFamilyGroup`, `workerSubType`, `timeType`, `locationMainGroup` with 3
-useless values), so we facet on `jobFamilyGroup` instead. Side benefit: this
-populates `category` for NVDA for free, no keyword classifier needed.
+---
 
-Real NVDA total = 2,639 (32% more than the capped 2,000 we would have shipped).
-
-**Interview moments:**
-1. "Workday's career API silently caps results at 2000. Caught this because
-   NVDA returned exactly 2000 — round numbers in scraped data are a smell.
-   Fixed by faceted pagination."
-2. "NVIDIA's tenant doesn't expose location facets — only job categories.
-   Turned the constraint into a feature: faceting on category bypasses the
-   cap AND gives us role classification for free."
-3. "NVIDIA's hiring mix is 69% Engineering / 11% Sales. Unusually
-   engineer-heavy vs typical tech (40-50% eng) — reflects an R&D-led org
-   where product = engineering."
-4. "Built the loader as per-ATS modules (Workday today; iCIMS, Avature,
-   Oracle stubbed for Day 5). Adding a platform is one new fetcher function,
-   not a rewrite."
-
-**Known data-quality compromises (record now, fix later):**
-- `posted_date` is approximate. Workday returns "Posted N Days Ago" as a string;
-  "Posted 30+ Days Ago" collapses to exactly 30 days. ~30% of postings have
-  imprecise posted_date as a result. Acceptable for current-period analysis;
-  flag if doing precise tenure stats.
-- "6 Locations" / "2 Locations" strings appear in the `location` column when
-  a single posting is open in >5 cities. Full city list would require a
-  per-job detail API call — deferred.
-- CDNS and MRVL have NULL category. Will populate via keyword classifier on
-  Day 5 or fold into a later pass.
-- Hiring data is snapshot-forward only. Historical hiring (pre-today) is NOT
-  reconstructible from this source. Cross-source joins to patents/financials
-  use the overlap window (today onward).
-
-**Day 5 plan:**
-- Add iCIMS fetcher → enables AMD
-- Add Avature fetcher → enables SNPS (and rolls in ANSS)
-- Verify remaining Workday tenants (QCOM, INTC, AVGO, MU) and turn them on
-- Keyword classifier for CDNS/MRVL `category` column
-- Begin financials ETL (yfinance) if time permits
-
-**Loaders inventory (cumulative):**
-- `load_companies.py`, `load_patents.py`, `load_hiring.py` — all use
-  ON CONFLICT DO NOTHING and are safe to re-run.
-
-# ============================================================
-# SUGGESTED COMMIT MESSAGE
-# ============================================================
-
-# Day 4: Hiring signals ETL (Workday, 3 tickers)
-#
-# - Add hiring_signals table with (job_id, snapshot_date) PK
-# - load_hiring.py: config-driven multi-ATS loader, Workday handler complete
-# - 3,891 rows loaded for NVDA / CDNS / MRVL
-# - Faceted-pagination workaround for Workday's 2000-result cap
-# - NVDA category mix captured via jobFamilyGroup facet (Engineering 69%)
-# - 9 non-Workday tickers stubbed for Day 5+
-
-**End of handoff. Next session: paste this entire document at the start of the new chat.**
+**End of handoff. Next session: paste this entire document at the start of the new chat. Day 6 = enable QCOM, INTC, AVGO, MU (Workday config only).**
