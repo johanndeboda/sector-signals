@@ -82,7 +82,7 @@ When a choice involves judgment, do this:
 
 ### Interview-moment framing
 
-When the project surfaces something analytically interesting (a surprising number, a methodology choice, an anomaly, a lesson learned), name it explicitly as "interview-worthy" and draft 1-2 sentences he could use. The `interview_moments.md` file in the repo accumulates these. Suggest entries when relevant.
+When the project surfaces something analytically interesting (a surprising number, a methodology choice, an anomaly, a lesson learned), name it explicitly as "interview-worthy" and draft 1-2 sentences he could use. The `interview_moments.md` file in the repo accumulates these. Suggest entries when relevant. **At the end of every session, run the end-of-day routine in §16** — the day summary plus drafted interview moments are produced then, as a standing habit, not something Johan has to remember to ask for.
 
 ---
 
@@ -301,6 +301,7 @@ Unchanged from prior handoff — kept here for completeness:
 - Re-investigate AVGO patent gap
 - Fix Q4 financials gap by parsing 10-Ks
 - Cleanup pass: delete throwaway scripts, fix `requirements.txt` name
+- **Write-it-yourself exercise:** have Johan write one small piece of code entirely himself (a SQL view is a good candidate) — Claude explains the approach, Johan writes it, Claude only reviews. See §16 for why. One or two reps is enough.
 
 ### Week 3 — first analyses
 - 3-5 driving analytical questions with clean charts
@@ -391,7 +392,39 @@ Note: hiring counts will differ from the figures in §6 on any later run, becaus
 
 ---
 
-## Suggested commit message for Day 5
+## 16. End-of-day routine (do this every session — Johan + Claude)
+
+This is a **standing routine**, added on Day 5. Run it at the close of every working session, before committing. Its purpose: make sure the day's learning and progress are captured *while they're fresh*, since the project's memory lives entirely in these files — nothing carries over between sessions otherwise.
+
+### Claude's job — produce an end-of-day summary
+
+When Johan signals the session is wrapping up (or asks for the summary), Claude writes a short **Day Summary** with three parts:
+
+1. **What got done** — 2-4 bullets, plain language. The concrete deliverables of the day.
+2. **Interview moments** — drafted in *Johan's voice*, in the *situation → finding → action → lesson* shape, ready to paste into `interview_moments.md`. **Every moment must end with an explicit `Lesson:` line** — that single sentence is the interview-grade takeaway and the entries that lack one are the weak ones.
+3. **What's next** — one line: what the next session's first task is.
+
+Keep the summary tight. It is a recap, not a re-explanation — Johan was there for the work.
+
+### Johan's job — update the logs
+
+At end of day, Johan:
+- Pastes the interview moments into `interview_moments.md`, **rewriting in his own words** if Claude's draft sounds like transcript rather than his voice. (Observed risk: Day 5's entry was pasted verbatim from chat and reads like a transcript with a leftover instruction-to-self in it. Own-voice + a `Lesson:` line is the standard.)
+- Commits the day's work (code + `HANDOFF.md` + `interview_moments.md`).
+
+### Notes on `interview_moments.md` format
+
+- The strong existing entries (Day 2's API pivots, Day 3's Marvell-entities note) follow *situation → finding → action → lesson*. That is the template — match it.
+- The file currently repeats `## Week 1` as a header six times. Minor, but a single `## Week 1` with `### Day N` subheadings underneath would read cleaner as it grows. Tidy when convenient.
+- Halfway through the project and at the end, this file is what Johan rereads to reconstruct the whole arc — for his own memory and for "walk me through what you learned" interview questions. It only works if every day gets an honest entry with a real lesson line.
+
+### On the learning-vs-reading question (raised Day 5)
+
+Johan noted he's reading code fluently but not writing it from scratch, and asked if that's okay. For his target analyst-track roles it is — reading-level fluency to *defend* the pipeline is the actual goal. But it was agreed that **somewhere in Week 2-3 he should write one small piece entirely himself** (e.g. a SQL view or a small filter function): Claude explains the approach, Johan writes the code, Claude only reviews. The point is crossing once or twice from "I recognize this" to "I made this" so the understanding is load-bearing. Flagged here so a future session actually schedules it — see Week 2 in §11.
+
+---
+
+## Appendix — Suggested commit message for Day 5
 
 ```
 Week 1 Day 5: Hiring ETL — AMD via Jibe + fetcher registry
