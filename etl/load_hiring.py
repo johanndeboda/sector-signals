@@ -68,10 +68,10 @@ COMPANIES_CONFIG = {
     },
 
     # ---- WORKDAY (suspected, not yet verified) — Day 5 ----
-    "QCOM": {"ats": "workday", "enabled": False, "host": None, "tenant": None, "site": None},
-    "INTC": {"ats": "workday", "enabled": False, "host": None, "tenant": None, "site": None},
-    "AVGO": {"ats": "workday", "enabled": False, "host": None, "tenant": None, "site": None},
-    "MU":   {"ats": "workday", "enabled": False, "host": None, "tenant": None, "site": None},
+    "QCOM": {"ats": "unknown", "enabled": False, "host": "careers.qualcomm.com", "tenant": None, "site": None},
+    "INTC": {"ats": "workday", "enabled": True, "host": "intel.wd1.myworkdayjobs.com", "tenant": "intel", "site": "External"},
+    "AVGO": {"ats": "workday", "enabled": True, "host": "broadcom.wd1.myworkdayjobs.com", "tenant": "broadcom", "site": "External_Career"},
+    "MU":   {"ats": "unknown", "enabled": False, "host": "careers.micron.com", "tenant": None, "site": None},
 
     # ---- OTHER ATS (Day 5+) ----
     # AMD's public careers site (careers.amd.com) is a Jibe-fronted portal.
