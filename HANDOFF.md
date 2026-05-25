@@ -1,6 +1,5 @@
-# Sector Signals — Handoff Document
-**Last updated:** end of Week 1, Day 5 (Wednesday, May 20, 2026)
-**Project status:** On track. Plumbing week ~85% complete. Hiring ETL live for 4 of 12 tickers.
+**Last updated:** end of Week 1, Day 6 (Monday, May 25, 2026)
+**Project status:** On track. Plumbing week ~92% complete. Hiring ETL live for 6 of 12 tickers.
 
 ---
 
@@ -169,19 +168,18 @@ Note: there are a few non-hiring loaders (`load_financials.py`, `edgar_backfill.
 | ANSS | 132 | Acquired by SNPS July 2025 |
 | **Total** | **61,519** | |
 
-### Hiring signal counts (as of D5 run — verified in DB)
+### Hiring signal counts (as of D6 run — verified in DB)
 
-| Ticker | Count | ATS | Notes |
+| Ticker | Count (D6) | ATS | Notes |
 |---|---|---|---|
-| NVDA | 2,655 | Workday | Faceted on `jobFamilyGroup` to beat the 2000 cap |
-| MRVL | 633 | Workday | category NULL |
-| CDNS | 626 | Workday | category NULL |
-| AMD | 1,291 | Jibe | NEW on D5 — matched the API's reported `totalCount` exactly |
-| **Total** | **5,205** | | snapshot_date = D5 |
+| NVDA | ~2,623 | Workday | Faceted on `jobFamilyGroup` to beat the 2000 cap |
+| MRVL | ~656 | Workday | category NULL |
+| CDNS | ~625 | Workday | category NULL |
+| AMD | ~1,170 | Jibe | Exact ISO posted_date |
+| INTC | ~743 | Workday | NEW on D6 — straight pagination, no cap |
+| AVGO | ~380 | Workday | NEW on D6 — transient ConnectionError on first run, recovered via re-run |
 
-The other 8 tickers are stubbed in config and skipped at runtime.
-
----
+Counts are per-snapshot and drift daily — `hiring_signals` is a forward-accumulating snapshot table. QCOM and MU are stubbed `ats="unknown"` (not Workday — see §8). SNPS, ANSS, TXN, TSM still stubbed.
 
 ## 7. What we built on Days 1-4 (carried forward)
 
@@ -250,6 +248,18 @@ Syntax checked; transform tested offline against the real API response shape; th
 
 ---
 
+## 8b. What we built on Day 6 — enable INTC + AVGO
+
+Config-only day, no new code. The Day 4 plan listed QCOM, INTC, AVGO, MU as "suspected Workday." Verified each against its live careers page:
+
+- **INTC** — Workday. `intel.wd1.myworkdayjobs.com`, tenant `intel`, site `External`. Enabled. Straight pagination, total ~743, no 2000-cap issue.
+- **AVGO** — Workday. `broadcom.wd1.myworkdayjobs.com`, tenant `broadcom`, site `External_Career` (singular — NOT `External_Careers`, which is CDNS). Enabled. First run hit a transient `ConnectionResetError`; idempotent re-run completed it cleanly (~380 rows).
+- **QCOM** — NOT Workday. `careers.qualcomm.com` self-hosted/Appcast-style portal (pid + sort_by params). Stubbed `ats="unknown"`, disabled. Needs its own fetcher.
+- **MU** — NOT Workday. `careers.micron.com`, same portal pattern as QCOM. Stubbed `ats="unknown"`, disabled. Needs its own fetcher.
+
+Result: hiring data live for 6 of 12 tickers. The "suspected Workday" four split 50/50.
+---
+
 ## 9. Judgment calls on Day 3 (still must defend in interviews)
 
 Unchanged from prior handoff — kept here for completeness:
@@ -262,6 +272,7 @@ Unchanged from prior handoff — kept here for completeness:
 6. **TSM includes a garbled "TAIWAN SEMICONDUCTOR MTAIWANANUFACTURING..." string** (feed corruption, real filing).
 7. **Co-assignee deduplication** — 108 patents with ≥2 of our tickers get one ticker deterministically.
 8. **Inner join for patent metadata** (drop rows with no grant_date); left join for CPC (NULL class is fine).
+10. **QCOM and MU are not on Workday despite the plan's "suspected Workday" label.** Both run a non-Workday `careers.{company}.com` portal (Appcast-style). Tagged `ats="unknown"` and disabled rather than forced into a wrong label — same discipline as the AMD/Jibe call (#9).
 
 ### Day 5 judgment call (new)
 
@@ -293,8 +304,8 @@ Unchanged from prior handoff — kept here for completeness:
 - ✅ D3: Patents ETL end-to-end
 - ✅ D4: Hiring ETL — Workday handler, 3 tickers (NVDA, CDNS, MRVL)
 - ✅ D5: Hiring ETL — Jibe handler, AMD enabled; fetcher-registry refactor
-- ⏭ **D6 (next session): enable the remaining Workday tickers** — see §12
-
+- ✅ D6: Hiring ETL — INTC + AVGO enabled (Workday); QCOM + MU found non-Workday
+- ⏭ D7 (next session): SNPS hiring fetcher — Avature ATS (new fetcher, like Jibe). ANSS may roll in (Synopsys acquired it).
 ### Week 2 — analytical layer
 - Reusable SQL views (e.g. `v_patents_quarterly`, `v_hiring_by_ticker`)
 - First exploratory notebook: cross-source correlation checks
@@ -322,31 +333,19 @@ Unchanged from prior handoff — kept here for completeness:
 
 ## 12. Next session plan (Week 1 Day 6) — START HERE
 
-**Theme:** Enable the four suspected-Workday tickers — **QCOM, INTC, AVGO, MU.**
+## 12. Next session plan (Week 1 Day 7) — START HERE
 
-**Why this is the right next step:** these four need **zero new code.** The Workday fetcher already exists and is proven. All that's required is filling in the four `enabled=False` config stubs in `load_hiring.py` with the correct `host`, `tenant`, and `site` values. It's the highest-payoff, lowest-risk move available — four more companies go live for an afternoon of config, no fetcher to write or debug. The harder handlers (Avature, Oracle, TSM-unknown) are each better as their own dedicated day afterward.
+**Theme:** SNPS hiring fetcher — Synopsys is on **Avature**, a different ATS needing a brand-new fetcher (like the Day 5 Jibe work, not config-only).
 
-**The skill involved** is the same one used on D5 to find AMD's endpoint: open each company's careers page, read the ATS coordinates out of the URL / network traffic.
+**Why this is next:** the remaining stubbed tickers (QCOM, MU, SNPS, ANSS, TXN, TSM) all need new fetchers. SNPS is the cleanest start — Avature is a well-documented ATS, and ANSS likely rolls in since Synopsys acquired it (its careers may now sit under the Synopsys Avature tenant).
 
-### Plan: ~1.5 hours
+**Plan (~2 hrs):**
+1. Verify SNPS's careers page is Avature; read the endpoint (Network tab, like D5).
+2. Write `fetch_avature_jobs()` — new fetcher, add to the `FETCHERS` registry (one function + one line, per the D5 architecture).
+3. Check if ANSS is reachable via the same Synopsys tenant.
+4. Run, verify in DB, end-of-day routine.
 
-1. **(10 min)** Re-orient: skim `load_hiring.py`, look at the four stub entries (`QCOM`, `INTC`, `AVGO`, `MU` — all currently `"host": None, "tenant": None, "site": None`).
-2. **(40 min)** For each of the four tickers, find its Workday coordinates. A Workday careers URL looks like `https://{tenant}.{pod}.myworkdayjobs.com/{site}` — e.g. NVDA's is `nvidia.wd5.myworkdayjobs.com` / tenant `nvidia` / site `NVIDIAExternalCareerSite`. Open each company's careers page, read the three values from the URL, fill the config. Confirm each is actually on Workday first — if any isn't, leave it stubbed and note it (this would itself be an interview moment, à la AMD/Jibe).
-3. **(10 min)** Check whether any of the four will hit the 2000 cap. If a ticker's true posting count is near/over 2000, set `force_faceted: True` for it (QCOM and INTC are large companies — likely candidates). NVDA's config is the worked example to copy.
-4. **(15 min)** Run `python etl\load_hiring.py`, watch the four new sections. For any that prints a `WARNING — total=... hit the 2000 cap`, add `force_faceted` and re-run.
-5. **(10 min)** Verify in the DB:
-   `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "SELECT ticker, COUNT(*) FROM hiring_signals WHERE snapshot_date = CURRENT_DATE GROUP BY ticker;"`
-   Expect rows for all 8 enabled tickers (NVDA, CDNS, MRVL, AMD + the 4 new).
-6. **(10 min)** Update HANDOFF.md, log any interview moments, commit.
-
-### Decision to surface at session start
-
-Whether to also write the **keyword classifier for CDNS / MRVL `category`** in the same session, or defer it. Recommendation: defer — D6 is cleanest as a focused "enable Workday tickers" day. The classifier is a different kind of task and can be its own short session.
-
-### Pre-session note
-
-No prep strictly needed. If Johan wants, he can pre-open the four careers pages (qualcomm, intel, broadcom, micron) and have the URLs ready — but Claude can also walk him through finding them live.
-
+This is a code day, not a config day — budget reading time for the new fetcher.
 ---
 
 ## 13. Reproducibility checklist (for "rebuild from scratch" scenarios)
