@@ -2,10 +2,6 @@
 load_hiring.py — Fetch current job postings from semi-12 careers sites
 and insert them into hiring_signals.
 
-DAY 4 SCOPE: Workday tenants only (NVDA, CDNS, MRVL). Other ATS platforms
-(iCIMS for AMD, Avature for SNPS/ANSS, Oracle for TXN, plus unverified
-TSM) are stubbed in the config but skipped at runtime. Day 5 work.
-
 How Workday's job-search API works:
   POST https://{tenant}.{podN}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs
   Body: {"appliedFacets": {}, "limit": 20, "offset": N, "searchText": ""}
@@ -25,6 +21,7 @@ from typing import Iterator
 import psycopg2
 from psycopg2.extras import execute_values
 import requests
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -82,7 +79,17 @@ COMPANIES_CONFIG = {
     # known — see HANDOFF. ats tag = "jibe" (what the fetcher talks to).
     "AMD":  {"ats": "jibe", "enabled": True,
              "host": "careers.amd.com"},
-    "SNPS": {"ats": "avature",    "enabled": False},
+    # Day 7: TalentBrew fetcher works structurally (headers + parser verified
+    # against the response shape), but careers.synopsys.com sits behind
+    # stateful anti-bot fingerprinting (likely Akamai/Imperva). curl with the
+    # exact browser headers returns an empty envelope from the same IP, ruling
+    # out User-Agent/Referer/X-Requested-With/session cookies as the gate.
+    # Bypass would require a headless browser (Playwright) or curl-impersonate
+    # — out of scope for Day 7. Leaving disabled; fetcher stays registered so
+    # any non-fingerprinted TalentBrew site we encounter later works for free.
+    "SNPS": {"ats": "talentbrew", "enabled": False,
+             "host": "careers.synopsys.com",
+             "note": "anti-bot gated; needs Playwright"},
     "ANSS": {"ats": "skip",       "enabled": False, "note": "Acquired by SNPS Jul 2025"},
     "TXN":  {"ats": "oracle_hcm", "enabled": False},
     "TSM":  {"ats": "unknown",    "enabled": False},
@@ -114,6 +121,7 @@ def fetch_workday_facets(cfg: dict) -> list[tuple[str, str, str, int]]:
     r = requests.post(url, headers=headers, json=body, timeout=30)
     r.raise_for_status()
     data = r.json()
+    
  
     target_facet = None
     explicit_param = cfg.get("facet_param")
@@ -355,6 +363,177 @@ def fetch_jibe_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
               "Job count may be incomplete.")
 
 # ============================================================
+# TALENTBREW FETCHER  (SNPS — added Day 7)
+# ============================================================
+# TalentBrew (a TMP Worldwide / Radancy product) powers careers.synopsys.com.
+# The site's pagination AJAX endpoint is:
+#   GET https://{host}/search-jobs/results?CurrentPage=N&RecordsPerPage=15&...
+# Response shape:
+#   {"results": "<HTML string>", "filters": "...", "hasJobs": bool, ...}
+# The HTML inside "results" contains <li class="search-results-list__list-item">
+# elements — one per job — which we parse with BeautifulSoup.
+#
+# Critical: the endpoint returns an EMPTY response unless the request includes
+#   X-Requested-With: XMLHttpRequest   (marks it as a "real" AJAX call)
+#   Referer: https://{host}/search-jobs
+# Without those headers the server returns {"results": "", "hasJobs": true}.
+# This is a deliberate anti-scrape — discovered Day 7 via cURL inspection.
+#
+# Total job count is reported in the HTML as <h1>NNN results</h1>, which we
+# also use as the loop termination signal alongside an empty-page check.
+
+TALENTBREW_PAGE_SIZE = 15        # TalentBrew default; matches what the site sends
+TALENTBREW_MAX_PAGES = 500       # safety ceiling: 500 * 15 = 7,500 jobs
+
+# regex pulls the integer out of the "<h1>NNN results</h1>" header on page 1.
+_TB_TOTAL_RE = re.compile(r"^\s*([\d,]+)\s+results?\s*$", re.IGNORECASE)
+
+def _parse_talentbrew_posted(s, snapshot: date):
+    """TalentBrew renders posted_date as 'MM/DD/YYYY' inside
+    <span class="job-date-posted"><strong>Posted: </strong>05/18/2026</span>.
+    Caller passes the stripped value ('05/18/2026'). Return a date or None."""
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s.strip(), "%m/%d/%Y").date()
+    except (ValueError, TypeError):
+        return None
+
+def fetch_talentbrew_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
+    """Yield normalized job dicts from a TalentBrew careers site.
+
+    Same return contract as fetch_workday_jobs / fetch_jibe_jobs: dicts with
+    keys job_id, ticker, snapshot_date, title, location, posted_date,
+    category, ats, job_url.
+    """
+    host = cfg["host"]
+    base = f"https://{host}/search-jobs/results"
+    # The AJAX endpoint requires a real session. TalentBrew gates it on
+    # a session cookie issued only when you hit the HTML listings page first
+    # — X-Requested-With + Referer alone returns an empty envelope.
+    # We use a requests.Session to capture the cookies on the warm-up GET,
+    # then reuse them for every paginated API call.
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent":      USER_AGENT,
+        "Accept-Language": "en-US,en;q=0.9",
+    })
+    # Warm-up: hit the listings page to acquire session cookies.
+    warm = session.get(f"https://{host}/search-jobs", timeout=30)
+    warm.raise_for_status()
+
+    # Per-request headers for the AJAX endpoint.
+    api_headers = {
+        "Accept":           "*/*",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer":          f"https://{host}/search-jobs",
+    }
+    snapshot = date.today()
+    page = 1
+    total = None
+    seen = 0
+
+    while page <= TALENTBREW_MAX_PAGES:
+        params = {
+            "ActiveFacetID":   0,
+            "CurrentPage":     page,
+            "RecordsPerPage":  TALENTBREW_PAGE_SIZE,
+            "Keywords":        "",
+            "Location":        "",
+            "IsPagination":    "True",
+            "SearchType":      5,
+            "SortCriteria":    0,
+            "SortDirection":   0,
+        }
+        r = session.get(base, headers=api_headers, params=params, timeout=30)
+        r.raise_for_status()
+        envelope = r.json()
+        
+
+        html = envelope.get("results", "")
+        if not html.strip():
+            # Either the X-Requested-With unlock failed or we paginated past
+            # the end. Stop and let the total check below catch the mismatch.
+            break
+
+        soup = BeautifulSoup(html, "html.parser")
+
+        # Capture total once, from the page-1 "<h1>NNN results</h1>" header.
+        if total is None:
+            h1 = soup.find("h1")
+            if h1:
+                m = _TB_TOTAL_RE.match(h1.get_text())
+                if m:
+                    total = int(m.group(1).replace(",", ""))
+                    print(f"    [all] total={total}")
+
+        items = soup.select("li.search-results-list__list-item")
+        if not items:
+            break  # natural end of pagination
+
+        for li in items:
+            # job_id: the long numeric id on the anchor (e.g. 95675649328).
+            # This is TalentBrew's internal id, NOT the human "Job ID: 17299"
+            # the candidate sees on the page — that one is in <span class="jobId">
+            # and we keep it in job_url instead. We key on the long id because
+            # it's what the URL routes on and is guaranteed unique.
+            a = li.find("a", class_="sr-job-link")
+            if a is None:
+                continue
+            raw_id = a.get("data-job-id")
+            if not raw_id:
+                continue
+
+            # title: <h2> contains the title plus a trailing <img>. Strip
+            # nested tags so we keep just the visible text.
+            h2 = a.find("h2")
+            title = h2.get_text(strip=True) if h2 else ""
+
+            # location: <span class="job-location"> has a leading <img> icon;
+            # get_text(strip=True) drops it because img has no text.
+            loc_span = li.find("span", class_="job-location")
+            location = loc_span.get_text(strip=True) if loc_span else ""
+
+            # category: "<strong>Category: </strong>Engineering"
+            # — split off the label prefix.
+            cat_span = li.find("span", class_="category")
+            category = None
+            if cat_span:
+                cat_text = cat_span.get_text(strip=True)
+                category = cat_text.split("Category:", 1)[-1].strip() or None
+
+            # posted_date: "Posted: 05/18/2026"
+            posted_span = li.find("span", class_="job-date-posted")
+            posted_raw = None
+            if posted_span:
+                posted_raw = posted_span.get_text(strip=True).split("Posted:", 1)[-1].strip()
+
+            # job_url: href is relative ("/job/hillsboro/...") — prepend host.
+            href = a.get("href") or ""
+            url = f"https://{host}{href}" if href.startswith("/") else href
+
+            yield {
+                "job_id":        f"{ticker}:{raw_id}",
+                "ticker":        ticker,
+                "snapshot_date": snapshot,
+                "title":         title[:500],
+                "location":      location[:300],
+                "posted_date":   _parse_talentbrew_posted(posted_raw, snapshot),
+                "category":      (category or "")[:200] or None,
+                "ats":           "talentbrew",
+                "job_url":       url,
+            }
+            seen += 1
+
+        if total and seen >= total:
+            break
+        page += 1
+        time.sleep(SLEEP_BETWEEN_PAGES)
+    else:
+        print(f"  {ticker}: WARNING — hit TALENTBREW_MAX_PAGES ({TALENTBREW_MAX_PAGES}). "
+              "Job count may be incomplete.")
+
+# ============================================================
 # DB INSERT
 # ============================================================
 def deduplicate_jobs(rows: list[dict]) -> list[dict]:
@@ -407,8 +586,9 @@ def insert_jobs(conn, rows: list[dict]) -> int:
 # platform = write the function + add one line here. All fetchers share the
 # same contract: fetch(ticker, cfg) -> iterator of 9-key job dicts.
 FETCHERS = {
-    "workday": fetch_workday_jobs,
-    "jibe":    fetch_jibe_jobs,   # AMD — added Day 5
+    "workday":    fetch_workday_jobs,
+    "jibe":       fetch_jibe_jobs,         # AMD — added Day 5
+    "talentbrew": fetch_talentbrew_jobs,   # SNPS — added Day 7
 }
 
 # ============================================================

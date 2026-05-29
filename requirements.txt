@@ -6,3 +6,4 @@ python-dotenv
 anthropic
 requests
 jupyter
+beautifulsoup4
