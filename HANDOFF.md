@@ -1,6 +1,6 @@
 # HANDOFF — sector-signals
 
-Last updated: end of Day 8 (2026-06-01).
+Last updated: end of Day 9 (2026-06-01).
 
 This is the working memory between Claude sessions. Read this first.
 
@@ -30,6 +30,7 @@ Repo: `github.com/johanndeboda/sector-signals` (branch: `main`).
 - SQL: basic SELECTs, WHERE, simple JOINs (learned via SQLite + DB Browser).
   PostgreSQL is new as of this project.
 - Excel: pivots, VLOOKUP/XLOOKUP, basic formulas.
+- Jupyter/VS Code notebooks: new as of Day 9.
 - No prior experience: Tableau, Power BI, cloud tools, NLP, forecasting.
 - Willing to learn: intermediate/advanced SQL and Python, plus 1–2 new tools.
 
@@ -56,8 +57,8 @@ intelligence). Not narrowed to FAANG/Big 4/F500.
 uncertain. Ask clarifying questions before big recommendations.
 
 **Implication for Claude:** Explain new concepts when they come up (Johann is
-learning PostgreSQL, git, API patterns, etc. through this project). Don't
-assume deep CS background. When there's a choice between "impressive but
+learning PostgreSQL, git, API patterns, Jupyter, etc. through this project).
+Don't assume deep CS background. When there's a choice between "impressive but
 opaque" and "clear and explainable in an interview," choose the latter.
 
 ---
@@ -74,10 +75,18 @@ opaque" and "clear and explainable in an interview," choose the latter.
   Connection details live in `.env` (gitignored): `DB_HOST`, `DB_PORT`,
   `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
 - **Deps:** see `requirements.txt`. New as of Day 7: `beautifulsoup4`.
+  New as of Day 9: `ipykernel`, `matplotlib`, `seaborn`, `sqlalchemy`.
+  `requirements.txt` is regenerated via `pip freeze` so it includes all
+  transitive deps with pinned versions (longer than a hand-curated list,
+  but reproducible).
   To recreate the env: `pip install -r requirements.txt`.
+- **Notebooks:** VS Code's native Jupyter support (no standalone jupyter
+  server). Kernel = the repo venv. Common foot-gun: VS Code defaults to
+  global Python — explicitly select the `venv` kernel via top-right
+  "Select Kernel" → "Python Environments" → the one with `venv\Scripts\` in
+  the path.
 - **gitignored:** `venv/`, `__pycache__/`, `*.pyc`, `.env`, `data/`,
-  `.ipynb_checkpoints/`, `.vscode/`, `.DS_Store`, `*_test.json`
-  (the last added Day 7 to keep curl debug artifacts out).
+  `.ipynb_checkpoints/`, `.vscode/`, `.DS_Store`, `*_test.json`.
 
 ---
 
@@ -86,9 +95,11 @@ opaque" and "clear and explainable in an interview," choose the latter.
 ```
 etl/
   load_patents.py      # USPTO patents loader (Days 1–3)
-  load_hiring.py       # Careers-page job loader (Days 4–8) ← active file
+  load_hiring.py       # Careers-page job loader (Days 4–9) ← active file
 sql/
   schema.sql           # table definitions
+analysis/              # NEW Day 9 — Jupyter notebooks for signal analysis
+  01_hiring_snapshot.ipynb
 HANDOFF.md             # this file
 requirements.txt
 .env                   # gitignored
@@ -97,6 +108,12 @@ requirements.txt
 The pipeline is intentionally one-script-per-signal-type. Each script is
 idempotent: re-running on the same day inserts only net-new rows via
 `ON CONFLICT DO NOTHING` on a `(record_id, snapshot_date)` PK.
+
+Analysis lives in `analysis/` as numbered notebooks (`01_`, `02_`, ...) so
+the narrative reads left-to-right when browsing on GitHub. Notebooks are
+committed **with outputs intact** so charts render on github.com without
+cloning — explicit portfolio decision, opposite of the "strip outputs"
+convention used in collaborative production work.
 
 ---
 
@@ -158,10 +175,48 @@ in `insert_jobs()`.
   - **Playwright decision:** Only SNPS + TSM are gated (ANSS is a
     redirect). Two tickers isn't enough to justify adding Playwright
     as a dependency. Revisit if a third appears.
+- **Day 9:** Two work streams shipped, two clean commits to `main`.
+  - **Ingestion hardening (commit 1):**
+    - Added `_request_with_retry(method, url, ...)` helper at the top of
+      `load_hiring.py` (3 attempts, exponential backoff 1s→2s, retries
+      on `ConnectionResetError`, `requests.exceptions.ConnectionError`,
+      `ChunkedEncodingError`, `Timeout`). Re-raises after final attempt
+      so `main()`'s existing `except` clauses still catch terminal
+      failures.
+    - Decorated the **single-page request sites**, not the pagination
+      loops — so a transient reset retries one page instead of
+      restarting the whole ticker. 5 call sites swapped (lines 127, 209,
+      320, 570, 678 covering all 5 active fetchers).
+    - Refreshed stale module docstring (was Day 4-era, only described
+      Workday; now lists all 5 ATS platforms and the registry pattern).
+    - Removed dead `from email.mime import base` import.
+  - **Analysis kickoff (commit 2):**
+    - New `analysis/` folder + first notebook `01_hiring_snapshot.ipynb`.
+    - Jupyter env wired into VS Code: `ipykernel`, `matplotlib`,
+      `seaborn`, `sqlalchemy` added to `requirements.txt`. `sqlalchemy`
+      so `pandas.read_sql` doesn't throw the noisy "DBAPI2 not tested"
+      warning against raw `psycopg2` connections.
+    - Notebook ships with: DB connection cell, per-ticker open-jobs
+      summary query, bar chart, and an analyst-style **Observations**
+      markdown cell.
+    - Key findings (verified against latest 10-Ks):
+      - MU leads the hiring book at 3,024 open postings vs NVDA's
+        2,654 — consistent with Micron's active CHIPS-Act fab buildout
+        (Idaho, New York).
+      - NVDA still has the higher hiring **intensity** (6.3% vs 5.7%
+        open-role ratio) — raw count overstates large companies, ratio
+        is the fairer comparison.
+      - AVGO is the standout anomaly: 338 open postings against a
+        33k-employee base (1.0% ratio), and workforce *shrank* 10.8%
+        YoY (37k → 33k per Nov 2025 10-K). Consolidation mode post-
+        VMware, not growth mode. Worth tracking snapshot-over-snapshot.
+  - **INTC/AVGO sanity check:** browser-eyeballed against careers-page
+    totals — 713/340 displayed vs 715/338 in DB. Within noise (<1%).
+    Both Workday tenants confirmed healthy.
 
 ---
 
-## 7. ATS landscape (complete as of Day 8)
+## 7. ATS landscape (complete as of Day 8, unchanged Day 9)
 
 | ATS | Tickers | API style | Category? | Date quality |
 |-----|---------|-----------|-----------|--------------|
@@ -191,9 +246,9 @@ talks to the front-end API; the back-end ATS is irrelevant to the tag.
 
 ---
 
-## 8. Current data state (snapshot 2026-06-01)
+## 8. Current data state (snapshot 2026-06-01, end of Day 9)
 
-From DB after final Day 8 run:
+From DB:
 
 ```
  ticker | n_jobs | with_date | with_category |   oldest   |   newest
@@ -210,7 +265,8 @@ From DB after final Day 8 run:
 ```
 
 Nine tickers live, 11,573 jobs in today's snapshot. Three remaining
-(SNPS, ANSS, TSM) are blocked/skipped.
+(SNPS, ANSS, TSM) are blocked/skipped. Total rows in `hiring_signals`
+across all snapshots: ~62.9k (≈5–6 days of accumulated history as of EOD 9).
 
 ---
 
@@ -236,11 +292,6 @@ Nine tickers live, 11,573 jobs in today's snapshot. Three remaining
 - **Skip message wording is slightly misleading.** When SNPS is disabled
   the log says "ats=talentbrew, not yet implemented" but the fetcher
   *is* implemented. Cosmetic.
-- **Connection resets are transient.** Several runs during Day 8 hit
-  `ConnectionResetError` mid-pagination on various tickers. Always
-  resolved on re-run. The idempotent insert design handles this — re-run
-  inserts only net-new rows. A retry decorator would help but is not
-  blocking (Day 9 candidate).
 - **Oracle HCM URL encoding quirk.** The `finder` param uses semicolons
   and commas as internal delimiters. `limit`, `sortBy`, `offset` go
   inside `finder` (comma-separated), not as top-level `&` params.
@@ -250,6 +301,14 @@ Nine tickers live, 11,573 jobs in today's snapshot. Three remaining
 - **Run time is ~20–30 min** for a full 9-ticker sweep. NVDA's faceted
   mode (14 facets × pagination × sleep) is the bulk. Acceptable for
   daily batch but could be optimized with concurrency.
+- **Location strings are unstandardized across ATSes.** "Santa Clara, CA"
+  vs "Santa Clara, California, USA" vs "USA - California - Santa Clara"
+  all appear depending on platform. Any geographic analysis needs a
+  normalization step. Not blocking, but planned for Day 10.
+
+### Resolved this day
+- ~~Transient `ConnectionResetError` mid-pagination needs retries~~ —
+  resolved Day 9 via `_request_with_retry` helper.
 
 ---
 
@@ -294,58 +353,93 @@ before assuming an ATS from plan docs or prior research.**
 Rule: always verify by Network tab inspection first. The plan is wrong
 more often than it's right.
 
+### Verification by 10-K (Day 9)
+
+For analysis claims involving headcount, market cap, or workforce trends,
+pull the most recent 10-K (or aggregator citing it) before committing
+numbers to the public notebook. Day 9 found that off-the-cuff employee
+counts (NVDA 36k, MU 48k, AVGO 37k) were all one fiscal year stale; the
+verified current numbers (42k, 53k, 33k) materially changed the AVGO
+story — the YoY decline (37k → 33k) was the *strongest* evidence for
+the consolidation-mode framing, not a footnote.
+
+Rule: any specific number that goes on the portfolio gets verified
+against a primary source (10-K, investor relations) before commit.
+
+### Retry placement (Day 9)
+
+When wrapping HTTP calls in retries, decorate the **smallest unit that
+makes one request**, not the surrounding loop. A retry on
+`_paginate_workday` would restart pagination from page 1 on a transient
+failure at page 47. A retry on the single `requests.post(...)` call
+retries only page 47, preserving progress. Same logic: smallest possible
+blast radius.
+
 ---
 
-## 11. Day 9 plan
+## 11. Day 10 plan
 
 In priority order:
 
-1. **Retry logic for flaky connections.** Days 7–8 saw repeated
-   `ConnectionResetError` mid-pagination. A simple retry decorator
-   (3 attempts, exponential backoff) on each page request would make
-   the daily run more reliable. Small change, high impact.
+1. **Geographic spread analysis** — addresses the open question teed
+   up in `01_hiring_snapshot.ipynb`'s observations cell. Use the
+   `location` field to compare cross-ticker geographic concentration
+   (US vs Asia vs EU, single-HQ vs distributed). **Real work item:**
+   location strings are unstandardized across ATSes — a normalization
+   step (regex extraction of country/region, or a manual mapping table
+   for the top ~30 location strings) is required before the analysis
+   means anything. New cells in `01_hiring_snapshot.ipynb` OR a new
+   `02_hiring_geography.ipynb` — decide based on how long the
+   normalization detour gets. If clean, append; if it sprawls, split.
 
-2. **Update the stale module docstring** at the top of `load_hiring.py`
-   (still says "Day 4 SCOPE"). Should reflect the 5-ATS, 9-ticker
-   reality.
+2. **Category mix analysis** — the second open question from Day 9
+   observations. Limited coverage: only NVDA, AMD, QCOM, MU have
+   per-job categories. Each uses a different taxonomy (Workday
+   `jobFamilyGroup` vs Jibe `categories[].name` vs Eightfold
+   `department`), so cross-ticker comparison needs a mapping layer.
+   Practical scope: do *within-ticker* category breakdowns first
+   (one stacked bar per ticker showing role-mix), defer cross-ticker
+   normalization until a clear analysis use-case demands it.
 
-3. **Playwright path for SNPS + TSM.** If both are unblocked, that's
-   11 of 12 tickers (ANSS stays skipped). Playwright adds a real
-   dependency (`pip install playwright && playwright install chromium`).
-   Worth it only if the project will run long enough to justify the
-   maintenance. Decision: revisit after analysis layer is built.
-
-4. **Begin the analysis / timeseries layer.** The ingestion pipeline is
-   ~75% complete (9/12 tickers). Enough data to start building:
-   - Daily job-count timeseries per ticker
-   - Category distribution comparisons
-   - Hiring velocity (new postings per day)
-   - Cross-signal joins with patent data
-   This is the next major phase of the project.
-
-5. **Per-job category enrichment** for non-faceted Workday tickers and
-   Oracle HCM. Low priority — the aggregated facet counts may be
-   sufficient for analysis.
+3. **Snapshot-over-snapshot delta** — by Day 10 the DB has 2–3 days
+   of accumulated history per ticker. A simple delta query (jobs
+   added / removed since yesterday's snapshot, per ticker) becomes
+   meaningful and gives the first true *flow* signal. Worth a small
+   cell at end of `01_` to start tracking.
 
 ### Stretch
 
-- **Concurrent fetching.** `asyncio` + `aiohttp` or `ThreadPoolExecutor`
-  to fetch multiple tickers in parallel. Would cut run time from ~25 min
-  to ~5 min. Not blocking but nice for daily ops.
-- **INTC / AVGO Workday re-verification.** Both were added Day 6 from
-  config alone. Row counts in §7 look reasonable but haven't been
-  sanity-checked against their public careers-page totals.
+- **Hiring velocity** — for tickers with real `posted_date` coverage
+  (AMD, MU, QCOM, TXN), bucket postings into weekly bins and chart
+  velocity. Workday tickers limited to the past 30 days but still
+  show recent trend. Powerful chart for the portfolio.
+- **Cross-signal join with patents.** Both tables share `ticker` and
+  `snapshot_date`. First exploratory join: per-ticker monthly counts of
+  (new patents, new job postings) side-by-side. Sets up the
+  cross-signal narrative the project name promises.
+- **Concurrent fetching.** `asyncio` + `aiohttp` or
+  `ThreadPoolExecutor` to fetch multiple tickers in parallel. Would
+  cut run time from ~25 min to ~5 min. Not blocking but nice for
+  daily ops.
+- **Playwright path for SNPS + TSM.** Still deferred. Worth
+  revisiting only if the analysis layer hits a place where the missing
+  three tickers are a real gap.
+- **Per-job category enrichment** for non-faceted Workday + Oracle
+  HCM. Low priority; revisit when an analysis specifically wants it.
 
 ---
 
 ## 12. How to start the next session
 
-Hand Claude this file plus a short prompt like `start day 9`. Claude should:
+Hand Claude this file plus a short prompt like `start day 10`. Claude should:
 
 1. Read this HANDOFF in full.
 2. Open §11 and pick the top priority that isn't already done.
 3. Ask before writing any code if there's a judgment call (scope
    trade-off, dependency decision, architecture choice for analysis).
+4. For analysis work, default to extending `01_hiring_snapshot.ipynb`
+   unless the new analysis is structurally separate enough to warrant
+   `02_*.ipynb`. Commit notebooks with outputs intact.
 
 ---
 
@@ -361,12 +455,24 @@ Run the hiring loader:
 python etl/load_hiring.py
 ```
 
-DB sanity check:
+DB sanity check (today's snapshot, per-ticker):
 ```powershell
 & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "SELECT ticker, COUNT(*) AS n_jobs, COUNT(posted_date) AS with_date, COUNT(category) AS with_category, MIN(posted_date) AS oldest, MAX(posted_date) AS newest FROM hiring_signals WHERE snapshot_date = CURRENT_DATE GROUP BY ticker ORDER BY ticker;"
+```
+
+Total rows across all snapshots:
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "SELECT COUNT(*) FROM hiring_signals;"
 ```
 
 Test an endpoint without Python (cURL bisection):
 ```powershell
 curl.exe -s -o test.json -w "size=%{size_download} status=%{http_code}`n" "<URL>" -H "User-Agent: Mozilla/5.0 ..." -H "X-Requested-With: XMLHttpRequest" -H "Referer: <listings page>"
 ```
+
+Open the analysis notebook (VS Code):
+```powershell
+code analysis/01_hiring_snapshot.ipynb
+```
+Then select the venv kernel via top-right "Select Kernel" if VS Code
+defaults to global Python.
