@@ -1,18 +1,25 @@
 """
-load_hiring.py — Fetch current job postings from semi-12 careers sites
+load_hiring.py — Fetch current job postings from the semi-12 careers sites
 and insert them into hiring_signals.
 
-How Workday's job-search API works:
-  POST https://{tenant}.{podN}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs
-  Body: {"appliedFacets": {}, "limit": 20, "offset": N, "searchText": ""}
-  Response: {"jobPostings": [...], "total": <int>}
-  We paginate by incrementing offset until we've fetched all `total` jobs.
+ATS coverage (5 platforms, 9 of 12 tickers live as of Day 8):
+  workday    — NVDA, CDNS, MRVL, INTC, AVGO  (POST JSON)
+  jibe       — AMD                            (GET JSON)
+  eightfold  — QCOM, MU                       (GET JSON)
+  oracle_hcm — TXN                            (GET JSON)
+  talentbrew — SNPS (disabled, anti-bot)      (GET JSON+HTML)
+  unknown    — TSM  (disabled, SSR + 403)
+  skip       — ANSS (redirects to SNPS)
 
-This is the public API the company's own careers page uses — no auth,
-no scraping HTML, just JSON. Same idempotency pattern as load_patents.py:
-ON CONFLICT DO NOTHING on (job_id, snapshot_date) PK.
+Each fetcher returns an iterator of normalized 9-key dicts matching the
+hiring_signals schema. Fetchers are registered in FETCHERS by `ats` name;
+main() dispatches per-ticker via that registry.
+
+Idempotent: ON CONFLICT DO NOTHING on (job_id, snapshot_date) means
+re-running on the same day inserts only net-new rows. Page-level requests
+are wrapped in _request_with_retry() for transient connection errors.
 """
-from email.mime import base
+
 import re
 import os
 import time
@@ -108,6 +115,37 @@ SLEEP_BETWEEN_PAGES = 0.5  # be polite, avoid getting rate-limited
 SLEEP_BETWEEN_FACETS = 1.0  # extra politeness when looping facets
 
 # ============================================================
+# NETWORK RETRY HELPER
+# ============================================================
+# Wraps a single HTTP request with retries on transient connection errors.
+# Retries the request itself, NOT the surrounding pagination — a reset on
+# page 47 retries page 47, not pages 1–46. HTTP errors (4xx/5xx) are NOT
+# retried here; call .raise_for_status() after, same as before.
+_RETRYABLE = (
+    ConnectionResetError,
+    requests.exceptions.ConnectionError,
+    requests.exceptions.ChunkedEncodingError,
+    requests.exceptions.Timeout,
+)
+
+def _request_with_retry(method: str, url: str, *, attempts: int = 3,
+                        base_delay: float = 1.0, backoff: float = 2.0,
+                        **kwargs):
+    """requests.request() with exponential backoff on transient failures."""
+    delay = base_delay
+    for attempt in range(1, attempts + 1):
+        try:
+            return requests.request(method, url, **kwargs)
+        except _RETRYABLE as e:
+            if attempt == attempts:
+                raise
+            print(f"  [retry] {method} {url[:70]}... "
+                  f"{type(e).__name__}; attempt {attempt}/{attempts}, "
+                  f"waiting {delay:.0f}s")
+            time.sleep(delay)
+            delay *= backoff
+
+# ============================================================
 # WORKDAY FETCHER
 # ============================================================
 # ============================================================
@@ -124,8 +162,7 @@ def fetch_workday_facets(cfg: dict) -> list[tuple[str, str, str, int]]:
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json",
                "Content-Type": "application/json"}
     body = {"appliedFacets": {}, "limit": 1, "offset": 0, "searchText": ""}
-    r = requests.post(url, headers=headers, json=body, timeout=30)
-    r.raise_for_status()
+    r = _request_with_retry("POST", url, headers=headers, json=body, timeout=30)    r.raise_for_status()
     data = r.json()
     
  
@@ -206,7 +243,7 @@ def _paginate_workday(ticker: str, cfg: dict, applied_facets: dict,
     while True:
         body = {"appliedFacets": applied_facets, "limit": PAGE_SIZE,
                 "offset": offset, "searchText": ""}
-        r = requests.post(url, headers=headers, json=body, timeout=30)
+        r = _request_with_retry("POST", url, headers=headers, json=body, timeout=30)
         r.raise_for_status()
         data = r.json()
  
@@ -317,7 +354,7 @@ def fetch_jibe_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
 
     while page <= JIBE_MAX_PAGES:
         params["page"] = page
-        r = requests.get(base, headers=headers, params=params, timeout=30)
+        r = _request_with_retry("GET", base, headers=headers, params=params, timeout=30)
         r.raise_for_status()
         data = r.json()
 
@@ -567,8 +604,7 @@ def fetch_eightfold_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
 
     for _ in range(EIGHTFOLD_MAX_PAGES):
         params["start"] = start
-        r = requests.get(base, headers=headers, params=params, timeout=30)
-        r.raise_for_status()
+        r = _request_with_retry("GET", base, headers=headers, params=params, timeout=30)
         data = r.json()["data"]
 
         if total is None:
@@ -675,7 +711,7 @@ def fetch_oracle_hcm_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
             f"sortBy=POSTING_DATES_DESC,"
             f"offset={offset}"
         )
-        r = requests.get(url, headers=headers, timeout=30)
+        r = _request_with_retry("GET", url, headers=headers, timeout=30)
         r.raise_for_status()
         envelope = r.json()
 
