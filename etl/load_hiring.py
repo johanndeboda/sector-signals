@@ -12,6 +12,7 @@ This is the public API the company's own careers page uses — no auth,
 no scraping HTML, just JSON. Same idempotency pattern as load_patents.py:
 ON CONFLICT DO NOTHING on (job_id, snapshot_date) PK.
 """
+from email.mime import base
 import re
 import os
 import time
@@ -42,7 +43,7 @@ COMPANIES_CONFIG = {
     # ---- WORKDAY (Day 4 targets) ----
     "NVDA": {
         "ats": "workday",
-        "enabled": True,
+        "enabled": False,
         "host": "nvidia.wd5.myworkdayjobs.com",
         "tenant": "nvidia",
         "site": "NVIDIAExternalCareerSite",
@@ -51,24 +52,26 @@ COMPANIES_CONFIG = {
     },
     "CDNS": {
         "ats": "workday",
-        "enabled": True,
+        "enabled": False,
         "host": "cadence.wd1.myworkdayjobs.com",
         "tenant": "cadence",
         "site": "External_Careers",
     },
     "MRVL": {
         "ats": "workday",
-        "enabled": True,
+        "enabled": False,
         "host": "marvell.wd1.myworkdayjobs.com",
         "tenant": "marvell",
         "site": "MarvellCareers",
     },
 
     # ---- WORKDAY (suspected, not yet verified) — Day 5 ----
-    "QCOM": {"ats": "unknown", "enabled": False, "host": "careers.qualcomm.com", "tenant": None, "site": None},
-    "INTC": {"ats": "workday", "enabled": True, "host": "intel.wd1.myworkdayjobs.com", "tenant": "intel", "site": "External"},
-    "AVGO": {"ats": "workday", "enabled": True, "host": "broadcom.wd1.myworkdayjobs.com", "tenant": "broadcom", "site": "External_Career"},
-    "MU":   {"ats": "unknown", "enabled": False, "host": "careers.micron.com", "tenant": None, "site": None},
+    "QCOM": {"ats": "eightfold", "enabled": False,
+        "host": "careers.qualcomm.com", "domain": "qualcomm.com", "ticker": "QCOM"},
+    "INTC": {"ats": "workday", "enabled": False, "host": "intel.wd1.myworkdayjobs.com", "tenant": "intel", "site": "External"},
+    "AVGO": {"ats": "workday", "enabled": False, "host": "broadcom.wd1.myworkdayjobs.com", "tenant": "broadcom", "site": "External_Career"},
+    "MU": {"ats": "eightfold", "enabled": False,
+       "host": "careers.micron.com", "domain": "micron.com", "ticker": "MU"},
 
     # ---- OTHER ATS (Day 5+) ----
     # AMD's public careers site (careers.amd.com) is a Jibe-fronted portal.
@@ -91,8 +94,11 @@ COMPANIES_CONFIG = {
              "host": "careers.synopsys.com",
              "note": "anti-bot gated; needs Playwright"},
     "ANSS": {"ats": "skip",       "enabled": False, "note": "Acquired by SNPS Jul 2025"},
-    "TXN":  {"ats": "oracle_hcm", "enabled": False},
-    "TSM":  {"ats": "unknown",    "enabled": False},
+    "TXN":  {"ats": "oracle_hcm", "enabled": True,
+         "tenant_host": "edbz.fa.us2.oraclecloud.com",
+         "public_host": "careers.ti.com"},
+    "TSM": {"ats": "unknown", "enabled": False,
+        "note": "SSR + anti-bot gated (403); needs Playwright"},
 }
 
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -534,6 +540,183 @@ def fetch_talentbrew_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
               "Job count may be incomplete.")
 
 # ============================================================
+# EIGHTFOLD FETCHER  (QCOM — added Day 8)
+# ============================================================
+# Eightfold AI powers careers.qualcomm.com. The search API is:
+#   GET https://{host}/api/pcsx/search?domain=...&query=&location=&start=N&sort_by=timestamp
+# Response: {"status": 200, "data": {"count": <int>, "positions": [...], ...}}
+# Pagination: `start` is 0-indexed offset, page size = 10 (server-determined).
+# No auth, no cookies, plain GET.
+
+EIGHTFOLD_PAGE_SIZE = 10
+EIGHTFOLD_MAX_PAGES = 500  # 500 * 10 = 5k jobs ceiling
+
+def fetch_eightfold_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
+    base = f"https://{cfg['host']}/api/pcsx/search"
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    params = {
+        "domain":   cfg["domain"],
+        "query":    "",
+        "location": "",
+        "sort_by":  "timestamp",
+    }
+    snapshot = date.today()
+    start = 0
+    total = None
+    seen = 0
+
+    for _ in range(EIGHTFOLD_MAX_PAGES):
+        params["start"] = start
+        r = requests.get(base, headers=headers, params=params, timeout=30)
+        r.raise_for_status()
+        data = r.json()["data"]
+
+        if total is None:
+            total = data["count"]
+            print(f"    [all] total={total}")
+
+        positions = data.get("positions", [])
+        if not positions:
+            break
+
+        for p in positions:
+            posted = (datetime.fromtimestamp(p["postedTs"]).date()
+                      if p.get("postedTs") else None)
+            yield {
+                "job_id":        f"{ticker}:{p['displayJobId']}",
+                "ticker":        ticker,
+                "snapshot_date": snapshot,
+                "title":         (p.get("name") or "").strip()[:500],
+                "location":      (p["locations"][0] if p.get("locations") else "")[:300] or None,
+                "posted_date":   posted,
+                "category":      (p.get("department") or "").strip()[:200] or None,
+                "ats":           "eightfold",
+                "job_url":       f"https://{cfg['host']}{p['positionUrl']}",
+            }
+            seen += 1
+
+        start += EIGHTFOLD_PAGE_SIZE
+        if total and seen >= total:
+            break
+        time.sleep(SLEEP_BETWEEN_PAGES)
+    else:
+        print(f"  {ticker}: WARNING — hit EIGHTFOLD_MAX_PAGES. Job count may be incomplete.")
+
+# ============================================================
+# ORACLE HCM FETCHER  (TXN — added Day 8)
+# ============================================================
+# Oracle HCM Cloud (Oracle Fusion Recruiting) powers careers.ti.com.
+# The careers-cloud REST API is well-documented and follows a standard
+# pattern across all Oracle HCM tenants:
+#   GET https://{tenant_host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions
+#       ?onlyData=true&finder=findReqs;siteNumber=CX,facetsList=...
+#       &limit=25&offset=N&sortBy=POSTING_DATES_DESC
+# Response envelope:
+#   {"items": [{"TotalJobsCount": <int>, "requisitionList": [<job>, ...], ...}]}
+# Pagination: `offset` += `limit` until offset >= TotalJobsCount.
+# No auth, no cookies. The {tenant_host} (edbz.fa.us2.oraclecloud.com for TXN)
+# is the company's Oracle Cloud tenant — find it via DevTools Network tab.
+#
+# Note: individual jobs don't carry a `Category` field. Categories live in
+# the aggregated `categoriesFacet` only. Same quirk as non-faceted Workday —
+# we leave category=NULL for Oracle HCM rows. Documented in HANDOFF §8.
+
+ORACLE_PAGE_SIZE = 25
+ORACLE_MAX_PAGES = 500  # 500 * 25 = 12.5k jobs ceiling
+
+# The full finder param is verbose but the server requires its exact shape.
+# Built once as a constant rather than f-strung per request.
+_ORACLE_FINDER = (
+    "findReqs;siteNumber=CX,"
+    "facetsList=LOCATIONS;WORK_LOCATIONS;WORKPLACE_TYPES;TITLES;"
+    "CATEGORIES;ORGANIZATIONS;POSTING_DATES;FLEX_FIELDS"
+)
+_ORACLE_EXPAND = (
+    "requisitionList.workLocation,"
+    "requisitionList.otherWorkLocations,"
+    "requisitionList.secondaryLocations,"
+    "flexFieldsFacet.values,"
+    "requisitionList.requisitionFlexFields"
+)
+
+_ORACLE_FACETS = (
+    "LOCATIONS%3BWORK_LOCATIONS%3BWORKPLACE_TYPES%3BTITLES"
+    "%3BCATEGORIES%3BORGANIZATIONS%3BPOSTING_DATES%3BFLEX_FIELDS"
+)
+
+def _parse_oracle_posted(s):
+    """Oracle returns PostedDate as ISO 'YYYY-MM-DD'. Parse to date or None."""
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s.strip(), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+def fetch_oracle_hcm_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
+    """Yield normalized job dicts from an Oracle HCM careers site.
+
+    Same return contract as the other fetchers.
+    """
+    base = f"https://{cfg['tenant_host']}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    snapshot = date.today()
+    offset = 0
+    total = None
+    seen = 0
+
+    for _ in range(ORACLE_MAX_PAGES):
+        url = (
+            f"{base}?onlyData=true"
+            f"&expand={_ORACLE_EXPAND}"
+            f"&finder=findReqs;siteNumber=CX,"
+            f"facetsList={_ORACLE_FACETS},"
+            f"limit={ORACLE_PAGE_SIZE},"
+            f"sortBy=POSTING_DATES_DESC,"
+            f"offset={offset}"
+        )
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        envelope = r.json()
+
+        items = envelope.get("items", [])
+        if not items:
+            break
+        search_result = items[0]
+
+        if total is None:
+            total = search_result.get("TotalJobsCount", 0)
+            print(f"    [all] total={total}")
+
+        reqs = search_result.get("requisitionList", [])
+        if not reqs:
+            break
+
+        for j in reqs:
+            raw_id = j.get("Id")
+            if not raw_id:
+                continue
+            yield {
+                "job_id":        f"{ticker}:{raw_id}",
+                "ticker":        ticker,
+                "snapshot_date": snapshot,
+                "title":         (j.get("Title") or "").strip()[:500],
+                "location":      (j.get("PrimaryLocation") or "").strip()[:300],
+                "posted_date":   _parse_oracle_posted(j.get("PostedDate")),
+                "category":      None,  # Not present per-job; see header comment
+                "ats":           "oracle_hcm",
+                "job_url":       f"https://{cfg['public_host']}/en/sites/CX/jobs/preview/{raw_id}/",
+            }
+            seen += 1
+
+        offset += ORACLE_PAGE_SIZE
+        if total and seen >= total:
+            break
+        time.sleep(SLEEP_BETWEEN_PAGES)
+    else:
+        print(f"  {ticker}: WARNING — hit ORACLE_MAX_PAGES. Job count may be incomplete.")
+
+# ============================================================
 # DB INSERT
 # ============================================================
 def deduplicate_jobs(rows: list[dict]) -> list[dict]:
@@ -589,6 +772,8 @@ FETCHERS = {
     "workday":    fetch_workday_jobs,
     "jibe":       fetch_jibe_jobs,         # AMD — added Day 5
     "talentbrew": fetch_talentbrew_jobs,   # SNPS — added Day 7
+    "eightfold":  fetch_eightfold_jobs,    # QCOM — added Day 8
+    "oracle_hcm": fetch_oracle_hcm_jobs,   # TXN — added Day 8
 }
 
 # ============================================================
