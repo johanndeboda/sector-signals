@@ -40,3 +40,67 @@ LOADERS utilize ON CONFLICT DO NOTHING
 ## Week 1
 - [Day 4] : 
 
+Scraped NVDA workday, but it maxed out at 2000 due to a pagination issue. Fixed by shrinking pagination to capture full scope of job lisings
+
+Fix did not work, need to paginate by job category instead of location as NVDA does not have location filter.
+
+## Week 1
+- [Day 5] : 
+
+First — ats_code inside every job says "icims", and apply_url points to *.icims.com. So AMD genuinely is iCIMS underneath, exactly as the Day 5 plan said — but the public listing layer is Jibe. Tagging ats="jibe" is correct (it's what the fetcher talks to), and the JSON itself confirms the Day 4 plan wasn't wrong, just incomplete.
+
+Second — totalCount: 1291. Not a round number, no visible cap, and the facet counts sum cleanly (597+259+93+... = 1291 by country). So unlike the NVDA 2000-cap problem, no faceting workaround is needed here — straight pagination gets everything. I'll still add a safety check in case that changes.
+
+ask if the loadhiring replacement what changes made and is it worth reviewing code
+
+I verified the live site before coding and found it had migrated to a Jibe front-end. Lesson: a plan written weeks ago is a hypothesis, not a fact — re-verify before building
+
+## Week 1
+- [Day 6] : 
+
+Before moving on to Qualcomm, I made sure to keep it disabled until I had finished the ones that were surely Workday ATS. This proved to be the right decision as a quick search into Qualcomm's careers page showed that it was an in-house careers page and not outsourced.
+
+    SAME for Micron Technologies
+
+Recovered AVGO from a transient ConnectionResetError by re-running the idempotent loader — confirmed config was already correct (the API had returned a valid count before the connection dropped).
+    Re-running was safe due to ON CONFLICT DO NOTHING, to continue
+
+Hiring data now live for 6 of 12 tickers
+
+
+## Week 1
+- [Day 7] : 
+
+Looked into Synopsys careers page using DevTools and found out that it is not under Avature but instead Recruitics/Appcast-style meaning it might be able to be reused for QCOM and MU
+
+    NEVERMIND, it is Avature as the backend but hidden by the frontend "with a custom front-end skin (similar to how AMD runs iCIMS behind Jibe — exact same pattern). Interview moment."
+    
+    TalentBrew Frontend
+
+
+
+
+
+            To do:
+
+## Week 1
+- [Day 8] : 
+
+Category will be null for TXN
+ANSS redirects to SNPS (acquisition)
+TSMC is also anti-bot similar to SNPS
+
+Quick recap: 
+    Workday — POST JSON, paginated, 2000-result cap, relative dates
+    Jibe — GET JSON, clean ISO timestamps, straightforward
+    Eightfold — GET JSON, Unix timestamps, department field gives free categories
+    Oracle HCM — GET JSON, nested envelope, ISO dates, no per-job category
+    TalentBrew — HTML inside JSON, needs session cookies
+
+## Week 1
+- [Day 9] : 
+
+Jupyter notebook analyses on ipynb file
+
+## Week 1
+- [Day 10] : 
