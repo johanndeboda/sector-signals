@@ -1,478 +1,214 @@
-# HANDOFF — sector-signals
+# Sector Signals — Project Handoff
 
-Last updated: end of Day 9 (2026-06-01).
+**Last updated:** end of Day 10 (2026-06-02)
+**Owner:** Johann
+**Repo:** `sector-signals` (local: `C:\Users\Johan\sector-signals`, Windows, PowerShell, venv)
 
-This is the working memory between Claude sessions. Read this first.
+> This document is the single source of truth between work sessions. It is rebuilt/updated at the end of each working day. The next session should read it **in full** before doing anything. Items marked **[CONFIRM]** couldn't be verified from memory — check them against the repo before relying on them.
+
+---
+
+## 0. How to use this handoff
+
+**Next Claude session — start here:**
+1. Read this whole file first. Do not start coding until you have.
+2. Go to §11 (Roadmap), pick the top item not yet done, start there.
+3. Before writing code on any judgment call (where a file goes, which normalization approach, scope trade-offs), **ask Johann first** with a clear recommendation.
+4. Follow §6 (How Claude should work) exactly — the working dynamic matters as much as the code.
+
+**Johann — to update this at end of day:** say "update the handoff." Claude refreshes §9 (data state), §10 (progress log), §11 (roadmap), §12 (open items), keeping everything else current. Keep the structure identical session to session so handoffs stay consistent.
 
 ---
 
 ## 1. What this project is
 
-A 12-ticker semiconductor-sector signal pipeline. For each ticker we ingest
-multiple "signal" datasets (patents, hiring, etc.) into Postgres, snapshot
-daily, then later join everything into a per-ticker timeseries for analysis.
+A data pipeline + analysis project that tracks **hiring signals** (and later **patents**) across major US-listed **semiconductor companies** to infer where the industry is investing — by company, geography, and role type. Thesis: public job postings are a free, structured, leading signal of corporate intent (expansion, geographic strategy, R&D focus) that you can scrape, normalize, store, and analyze.
 
-Tickers (the "semi-12"): NVDA, AMD, AVGO, QCOM, INTC, TSM, MU, MRVL, CDNS,
-SNPS, ANSS, TXN.
-
-Repo: `github.com/johanndeboda/sector-signals` (branch: `main`).
+It is a **portfolio project** to land Johann a data/analyst **internship**. Every output is built to be (a) verifiable, (b) a differentiator, (c) something he can talk through in an interview, and (d) a vehicle for leveling up his technical skills.
 
 ---
 
-## 2. Who's building this (optimize for this person)
+## 2. Candidate profile, qualifications & goals
 
-- **Name:** Johann De Boda
-- **Year/Major:** 2nd-year MIS major, Bay Area (Union City, CA)
-- **Hardware:** Dell XPS 15
+**Background**
+- 2nd-year **MIS** major.
+- Bay Area (Union City, CA).
+- Hardware: Dell XPS 15. Dev env: Windows, PowerShell, VS Code, Python venv, local PostgreSQL.
 
-**Technical skills (honest):**
-- Python: scripts, pandas, basic data cleaning. Learning intermediate.
-- SQL: basic SELECTs, WHERE, simple JOINs (learned via SQLite + DB Browser).
-  PostgreSQL is new as of this project.
-- Excel: pivots, VLOOKUP/XLOOKUP, basic formulas.
-- Jupyter/VS Code notebooks: new as of Day 9.
-- No prior experience: Tableau, Power BI, cloud tools, NLP, forecasting.
-- Willing to learn: intermediate/advanced SQL and Python, plus 1–2 new tools.
+**Technical skills — honest self-assessment (Day 1 baseline; update as he grows):**
+- **Python:** can write scripts, use pandas, basic data cleaning.
+- **SQL:** basic `SELECT`/`WHERE`/simple `JOIN`s (came from SQLite + DB Browser).
+- **Excel:** pivots, VLOOKUP/XLOOKUP, basic formulas.
+- **No prior experience (at Day 1):** Tableau, Power BI, PostgreSQL, cloud tools, NLP, forecasting.
+- Through this project he has already started using PostgreSQL, SQLAlchemy, more advanced pandas, regex normalization, and matplotlib/seaborn — these are *new* skills being built live (see §4).
 
-**Domain experience:** Cadence Design Systems consulting project (via Marketing
-Association) — performed competitive analysis, external touchpoint audit,
-student perception survey, social media/careers page prototypes, and a
-Generative Engine Optimization analysis for Cadence. Already has semiconductor
-and EDA industry knowledge and consulting-style deliverable experience.
+**Prior experience — Cadence Design Systems consulting (via Marketing Association).** A student consulting program for Cadence (a major EDA / semiconductor-design-software company). The team: analyzed Cadence's industry and competitors; ran an external touchpoint audit and a student-perception survey; synthesized the research into frameworks and improvement **prototypes for Cadence's social media, early-careers website, job listings, and a new benefits page**; and ran a **Generative Engine Optimization (GEO)** analysis (an emerging topic) to build further frameworks and refine the prototypes. He delivered weekly presentations (public-speaking + professional-conduct reps). **Takeaways: he already has real semiconductor/EDA domain knowledge and consulting-style "turn analysis into actionable business deliverables" experience.**
 
-**Target roles:** Business/Data Analyst (open to consulting, product, strategy,
-intelligence). Not narrowed to FAANG/Big 4/F500.
+**Goals**
+- **Primary target roles:** Business/Data Analyst (open to consulting, product, strategy, intelligence).
+- **Target companies:** open — not narrowed to FAANG/Big 4/F500.
+- **Timeline:** project **resume-ready by the start of fall internship recruiting (~Aug–Dec)**. As of Day 10 Johann wants it **effectively done in ~1–2 months (possibly less)** because **summer school is starting** and his time will compress. These are consistent: aim for a polished, finished **core by ~mid-July–August**. (See §11 — scope is triaged to this.)
+- **Time commitment:** ~10–20 hrs/week over summer, **likely dropping** as summer school ramps. Plan for shrinking hours — favor work that compounds passively (see the scrape-automation pivot in §11).
+- **Builds in public:** yes — willing to post **weekly LinkedIn updates** and maintain a **public GitHub**. (This is why the GitHub-rendered notebooks and a public dashboard URL matter; see §11.)
 
-**Timeline:** Resume-ready by fall internship recruiting (~Aug–Dec 2026).
-10–20 hrs/week over summer.
-
-**What matters for the portfolio:**
-- Projects that show **measurable impact and results**, not just technical skills.
-- Clear differentiator vs. other 2nd-year MIS candidates.
-- Coherent interview story that builds on the Cadence experience.
-- Technical depth that signals "ready for an analyst internship."
-- Comfortable building in public: weekly LinkedIn updates, public GitHub.
-
-**Communication preferences:** Concise, no fluff. Verify info via search when
-uncertain. Ask clarifying questions before big recommendations.
-
-**Implication for Claude:** Explain new concepts when they come up (Johann is
-learning PostgreSQL, git, API patterns, Jupyter, etc. through this project).
-Don't assume deep CS background. When there's a choice between "impressive but
-opaque" and "clear and explainable in an interview," choose the latter.
+**What Johann is optimizing for (let this shape every build decision):**
+1. **Measurable impact and results**, not just "I used X tool." Findings should be concrete and defensible.
+2. A **clear differentiator** vs. other 2nd-year MIS candidates.
+3. A **coherent interview story that builds on the Cadence experience** (see §3).
+4. **Technical depth that signals "ready for an analyst internship."**
 
 ---
 
-## 3. Environment
+## 3. The interview story / why this project (the differentiator)
 
-- **OS:** Windows, PowerShell.
-- **Python:** in `venv/` at repo root. Activate with `venv\Scripts\Activate.ps1`.
-- **DB:** PostgreSQL **18.3**, local. `psql.exe` is NOT on PATH — call it with
-  the full path:
-  ```
-  & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "..."
-  ```
-  Connection details live in `.env` (gitignored): `DB_HOST`, `DB_PORT`,
-  `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
-- **Deps:** see `requirements.txt`. New as of Day 7: `beautifulsoup4`.
-  New as of Day 9: `ipykernel`, `matplotlib`, `seaborn`, `sqlalchemy`.
-  `requirements.txt` is regenerated via `pip freeze` so it includes all
-  transitive deps with pinned versions (longer than a hand-curated list,
-  but reproducible).
-  To recreate the env: `pip install -r requirements.txt`.
-- **Notebooks:** VS Code's native Jupyter support (no standalone jupyter
-  server). Kernel = the repo venv. Common foot-gun: VS Code defaults to
-  global Python — explicitly select the `venv` kernel via top-right
-  "Select Kernel" → "Python Environments" → the one with `venv\Scripts\` in
-  the path.
-- **gitignored:** `venv/`, `__pycache__/`, `*.pyc`, `.env`, `data/`,
-  `.ipynb_checkpoints/`, `.vscode/`, `.DS_Store`, `*_test.json`.
+This is the narrative spine — Claude should frame outputs to reinforce it, and Johann should tell it this way:
+
+> At Cadence (consulting), I worked on the *demand side* of semiconductor hiring — auditing and prototyping improvements to one company's job listings, early-careers site, and employer presence, including a GEO analysis. That made me ask: what does hiring activity across the *whole* semiconductor sector reveal about where the industry is actually investing? So I built a data pipeline to find out — scraping job postings from nine chip companies across five different ATS platforms, normalizing the mess, and analyzing it by company, geography, and role.
+
+Why it's strong: it connects **domain knowledge** (EDA/semis) + **consulting deliverables** (frameworks, actionable insight) + **new technical depth** (pipelines, SQL, normalization, viz) into one coherent thread, on the *same industry and even the same artifact* (job listings) he already worked on. His GEO experience also ties directly to the project's planned **AI feature** (§11). Few 2nd-year MIS candidates have this kind of through-line — lean on it.
 
 ---
 
-## 4. Repo layout (the parts that matter)
+## 4. Learning goals — skills to grow (NOT just deliverables)
 
-```
-etl/
-  load_patents.py      # USPTO patents loader (Days 1–3)
-  load_hiring.py       # Careers-page job loader (Days 4–9) ← active file
-sql/
-  schema.sql           # table definitions
-analysis/              # NEW Day 9 — Jupyter notebooks for signal analysis
-  01_hiring_snapshot.ipynb
-HANDOFF.md             # this file
-requirements.txt
-.env                   # gitignored
-```
+Johann explicitly wants to **expand his technical skills across everything this project touches**, and to *understand what Claude is doing* — not just receive finished work. Treat the project as a skill-building curriculum. As Claude works, it should **briefly explain the technique and why** (concise — a few sentences, not a lecture), so each piece is something Johann can explain in an interview.
 
-The pipeline is intentionally one-script-per-signal-type. Each script is
-idempotent: re-running on the same day inserts only net-new rows via
-`ON CONFLICT DO NOTHING` on a `(record_id, snapshot_date)` PK.
-
-Analysis lives in `analysis/` as numbered notebooks (`01_`, `02_`, ...) so
-the narrative reads left-to-right when browsing on GitHub. Notebooks are
-committed **with outputs intact** so charts render on github.com without
-cloning — explicit portfolio decision, opposite of the "strip outputs"
-convention used in collaborative production work.
+Skill ladder this project develops (track progress; useful for the resume "skills demonstrated" list):
+- **Python / pandas:** basic → intermediate/advanced (groupby, crosstab, apply, normalization functions, `.value_counts(normalize=True)`, reshaping).
+- **SQL / PostgreSQL:** basic SELECT → intermediate (CTEs, `FILTER`, `STRING_AGG`, aggregation, window functions later, joins across tables). PostgreSQL from zero → comfortable.
+- **Data cleaning / normalization:** regex, accent-folding, lexicon/override design, handling messy real-world fields (done for `location`; coming for `category`).
+- **Analysis concepts:** concentration metrics (HHI), region/role mix, time-series deltas, and — interpretation discipline (claims must not outrun the data).
+- **Data viz / BI:** matplotlib/seaborn (in progress) → **Tableau or Power BI** (new) for the dashboard.
+- **Engineering practices:** idempotent ETL, git hygiene, environment/secrets management, scheduling/automation.
+- **AI/API:** building a small Claude-API-powered feature (the "insight narrator," §11) — ties to his GEO background.
+- **Verification & communication:** sourcing claims, building-in-public write-ups.
 
 ---
 
-## 5. Database schema (hiring_signals)
-
-```sql
-CREATE TABLE hiring_signals (
-    job_id        TEXT NOT NULL,         -- "<TICKER>:<rawid>" — guaranteed unique within ticker
-    ticker        TEXT NOT NULL,
-    snapshot_date DATE NOT NULL,         -- day we observed this posting
-    title         TEXT,
-    location      TEXT,
-    posted_date   DATE,                  -- when the company says the job was posted
-    category      TEXT,                  -- ATS-defined (Workday jobFamilyGroup, Eightfold department, etc.)
-    ats           TEXT,                  -- "workday" | "jibe" | "talentbrew" | "eightfold" | "oracle_hcm"
-    job_url       TEXT,
-    PRIMARY KEY (job_id, snapshot_date)
-);
-```
-
-`patents` table follows the same shape, see `sql/schema.sql`. All fetchers
-yield 9-key dicts matching the columns above — that contract is enforced
-in `insert_jobs()`.
+## 5. (intentionally merged — see §6)
 
 ---
 
-## 6. Day-by-day history (compressed)
+## 6. How Claude should work on this — REPLICATE THIS DYNAMIC
 
-- **Day 1–3:** USPTO patent loader. Tickers → CPC codes → daily snapshots.
-  Production-stable.
-- **Day 4:** Workday job loader for NVDA/CDNS/MRVL. Discovered Workday's
-  global 2000-result cap; built `force_faceted` mode for NVDA that loops
-  per-jobFamilyGroup facet to recover full count.
-- **Day 5:** Added Jibe fetcher for AMD. Discovered AMD's public careers
-  (`careers.amd.com`) is a Jibe-fronted portal over an iCIMS back-end.
-  Established the "tag the layer the fetcher actually talks to" rule
-  (`ats="jibe"`, not `"icims"`). Built the `FETCHERS` dispatch registry so
-  adding a platform = write one function + add one line.
-- **Day 6:** Config-only — added INTC and AVGO once their Workday tenants
-  were confirmed. Both standard, no faceting needed.
-- **Day 7:** TalentBrew fetcher for SNPS. Structurally complete but
-  shipped disabled — `careers.synopsys.com` is behind stateful anti-bot
-  fingerprinting (likely Akamai Bot Manager). cURL-bisection confirmed
-  the gate is JS-issued cookies, not header-based.
-- **Day 8:** Three new tickers live:
-  - **QCOM** — Eightfold AI (not TalentBrew as the Day 7 plan guessed).
-    New `fetch_eightfold_jobs()` fetcher. Clean GET API, no auth,
-    Unix timestamps, `department` field gives free categories.
-  - **MU** — Also Eightfold. Config-only addition (same fetcher as QCOM).
-    Biggest ticker at ~3000 jobs.
-  - **TXN** — Oracle HCM Cloud. New `fetch_oracle_hcm_jobs()` fetcher.
-    Quirk: `limit`/`offset`/`sortBy` go inside the `finder` param
-    (comma-delimited), not as separate `&` query params. Semicolons in
-    `facetsList` must be percent-encoded (`%3B`). No per-job category.
-  - **TSM** — Investigated. Server-side rendered HTML (no XHR API),
-    returns 403 on plain requests. Anti-bot gated. Disabled.
-  - **ANSS** — Confirmed: `careers.ansys.com` redirects to SNPS.
-    Same TalentBrew, same anti-bot gate. Stays disabled.
-  - **Playwright decision:** Only SNPS + TSM are gated (ANSS is a
-    redirect). Two tickers isn't enough to justify adding Playwright
-    as a dependency. Revisit if a third appears.
-- **Day 9:** Two work streams shipped, two clean commits to `main`.
-  - **Ingestion hardening (commit 1):**
-    - Added `_request_with_retry(method, url, ...)` helper at the top of
-      `load_hiring.py` (3 attempts, exponential backoff 1s→2s, retries
-      on `ConnectionResetError`, `requests.exceptions.ConnectionError`,
-      `ChunkedEncodingError`, `Timeout`). Re-raises after final attempt
-      so `main()`'s existing `except` clauses still catch terminal
-      failures.
-    - Decorated the **single-page request sites**, not the pagination
-      loops — so a transient reset retries one page instead of
-      restarting the whole ticker. 5 call sites swapped (lines 127, 209,
-      320, 570, 678 covering all 5 active fetchers).
-    - Refreshed stale module docstring (was Day 4-era, only described
-      Workday; now lists all 5 ATS platforms and the registry pattern).
-    - Removed dead `from email.mime import base` import.
-  - **Analysis kickoff (commit 2):**
-    - New `analysis/` folder + first notebook `01_hiring_snapshot.ipynb`.
-    - Jupyter env wired into VS Code: `ipykernel`, `matplotlib`,
-      `seaborn`, `sqlalchemy` added to `requirements.txt`. `sqlalchemy`
-      so `pandas.read_sql` doesn't throw the noisy "DBAPI2 not tested"
-      warning against raw `psycopg2` connections.
-    - Notebook ships with: DB connection cell, per-ticker open-jobs
-      summary query, bar chart, and an analyst-style **Observations**
-      markdown cell.
-    - Key findings (verified against latest 10-Ks):
-      - MU leads the hiring book at 3,024 open postings vs NVDA's
-        2,654 — consistent with Micron's active CHIPS-Act fab buildout
-        (Idaho, New York).
-      - NVDA still has the higher hiring **intensity** (6.3% vs 5.7%
-        open-role ratio) — raw count overstates large companies, ratio
-        is the fairer comparison.
-      - AVGO is the standout anomaly: 338 open postings against a
-        33k-employee base (1.0% ratio), and workforce *shrank* 10.8%
-        YoY (37k → 33k per Nov 2025 10-K). Consolidation mode post-
-        VMware, not growth mode. Worth tracking snapshot-over-snapshot.
-  - **INTC/AVGO sanity check:** browser-eyeballed against careers-page
-    totals — 713/340 displayed vs 715/338 in DB. Within noise (<1%).
-    Both Workday tenants confirmed healthy.
+The working style that's been effective. Match it.
+
+1. **Concise & direct.** Lead with the answer/next action. Minimal fluff, minimal formatting on simple replies. Caveats short.
+2. **Verify current info via search** when uncertain, especially anything going into the portfolio (headcounts, market facts, "why" attributions, tool terms). Example Day 10: verified NVDA's Israel/Mellanox base and Micron's Asia footprint before letting them anchor observations.
+3. **Ask clarifying questions before big recommendations / architecture decisions.** Notebook placement, normalization strategy, scope trade-offs — surface the call with a recommendation; let Johann decide.
+4. **Profile before you build.** Never commit to an approach blind — look at the actual data first (we profiled location strings before choosing regex-vs-mapping). Do the same for `category` next.
+5. **Build iteratively and verifiably.** No large blind notebooks. Hand cells in stages; Johann runs them locally and pastes output; refine from real results.
+6. **Claude can't run the code.** No DB/network in chat — Postgres is on Johann's local machine. Claude writes cells, Johann runs + pastes, Claude iterates. Plan around this loop.
+7. **Don't hand fresh `.ipynb` files that would wipe local outputs.** Johann's local notebooks hold the real chart/table outputs needed for GitHub rendering. Give *cells to paste*, not replacement files.
+8. **Observations & analysis = GUIDED QUESTIONS, then PRESSURE-TEST.** For interpretive writing: Claude gives the numbers + pointer to the cell + plain-language questions; **Johann writes the observation in his own words**; then Claude pressure-tests (flags claims that outrun evidence, logic errors, unsupported attributions) **without rewriting his prose**. Methodology boilerplate (e.g., a coverage caveat) is fine for Claude to draft; *interpretation* is his. This is how he learns and keeps the work authentically his.
+9. **Teach as you go (§4).** Briefly explain each technique and why — concisely.
+10. **DO NOT fabricate or over-sharpen prior findings.** *(Hard lesson from Day 10 — two mistakes; don't repeat.)* Reference only what's *actually written* in existing notebooks. Don't paraphrase a past conclusion from memory or add specificity that wasn't there (e.g., "fab expansion" → "US CHIPS-Act Idaho/NY"). **Never assert a finding that needs data not yet built** (e.g., "workforce shrank over the year" is impossible without the time-series delta). When a claim needs data Johann doesn't have, say so.
+11. **Match existing conventions** (§8) so new code reads like the same author.
+12. **Reinforce the interview story (§3) and build-in-public goal** — when a milestone lands, it's a LinkedIn-able moment; flag it.
 
 ---
 
-## 7. ATS landscape (complete as of Day 8, unchanged Day 9)
+## 7. Technical architecture
 
-| ATS | Tickers | API style | Category? | Date quality |
-|-----|---------|-----------|-----------|--------------|
-| Workday | NVDA, CDNS, MRVL, INTC, AVGO | POST JSON | Only via faceting (NVDA) | Relative ("5 Days Ago"), caps at 30d |
-| Jibe | AMD | GET JSON | Yes (`categories[].name`) | Real ISO timestamps |
-| Eightfold | QCOM, MU | GET JSON | Yes (`department`) | Unix timestamps (real dates) |
-| Oracle HCM | TXN | GET JSON | No (aggregated only) | Real ISO dates |
-| TalentBrew | SNPS (disabled) | GET JSON+HTML | Yes | MM/DD/YYYY |
-| Unknown/SSR | TSM (disabled) | N/A | N/A | N/A |
-| Skip | ANSS | N/A | N/A | Redirects to SNPS |
+- **Stack:** Python 3.13.13; `pandas`, `SQLAlchemy` + `psycopg2`, `python-dotenv`, `matplotlib`, `seaborn`. Virtualenv `venv`. Jupyter for analysis.
+- **Database:** PostgreSQL, **local on Johann's Windows machine** (`localhost:5432`). Credentials in `.env` (gitignored); connection string built from `DB_USER / DB_PASSWORD / DB_HOST / DB_PORT / DB_NAME`.
+- **Repo layout** (**[CONFIRM]** exact tree against repo):
+  - `etl/load_hiring.py` — main scraper/loader (~861 lines). Pulls open jobs from each company's ATS, normalizes to a common row shape, upserts into `hiring_signals`. Idempotent. Handles Workday's 2000-result cap via **faceted fetching** (re-queries per location facet) with location-facet auto-detection.
+  - `etl/test_bulk_download.py` — patents spike (PatentsView S3 bulk download test). Patents pipeline not built out.
+  - `analysis/01_hiring_snapshot.ipynb` — hiring footprint by ticker (done).
+  - `analysis/02_hiring_geography.ipynb` — geographic spread (done Day 10).
+  - `interview_moments.md` — Johann's running notes of interview talking points.
+  - `.env` (gitignored), `.gitignore`, `schema.sql` **[CONFIRM]**.
+- **9 active tickers:** NVDA, AMD, QCOM, MU, INTC, MRVL, CDNS, AVGO, TXN. **SNPS (Synopsys) disabled** (TalentBrew ATS needs HTML scraping).
+- **ATS → ticker → location-field map** (matters for any field normalization):
 
-**"Tag what we talk to" rule:** AMD = Jibe(front) + iCIMS(back) → `ats="jibe"`.
-SNPS = TalentBrew(front) + Avature(back) → `ats="talentbrew"`. The fetcher
-talks to the front-end API; the back-end ATS is irrelevant to the tag.
+  | ATS | Tickers | Raw location field |
+  |-----|---------|--------------------|
+  | Workday | NVDA, CDNS, MRVL, INTC, AVGO | `locationsText` (emits "N Locations" for multi-site roles!) |
+  | Jibe | AMD | `full_location` |
+  | Eightfold | QCOM, MU | `locations[0]` |
+  | Oracle HCM | TXN | `PrimaryLocation` |
+  | TalentBrew | SNPS (disabled) | scraped `<span class="job-location">` |
 
-**Config fields required per ATS:**
-- **Workday:** `host`, `tenant`, `site`. Optional: `force_faceted`, `facet_param`.
-- **Jibe:** `host` only.
-- **Eightfold:** `host`, `domain` (e.g. `"qualcomm.com"`), `ticker`.
-  Page size is 10, server-determined — no `limit` param in the API.
-- **Oracle HCM:** `tenant_host` (API host, e.g. `"edbz.fa.us2.oraclecloud.com"`),
-  `public_host` (careers site, e.g. `"careers.ti.com"`). Two different hosts.
-- **TalentBrew:** `host` only.
-- **TSM (for future Playwright):** URL pattern is
-  `careers.tsmc.com/en_US/careers/SearchJobs/?jobRecordsPerPage=10&jobOffset=0`.
-  Server-side rendered HTML, no XHR API. Returns 403 without a real browser.
+- **Key data-quality gotcha:** Workday returns a *count* ("2 Locations", "3 Locations", …) instead of a place for multi-site postings. ~12.9% of all postings — entirely the five Workday tickers, worst on NVDA — have no usable location; bucketed "Multiple (unspecified)". Recovering them needs per-job Workday detail requests ("enrichment") — logged stretch item, not done.
 
 ---
 
-## 8. Current data state (snapshot 2026-06-01, end of Day 9)
+## 8. Conventions
 
-From DB:
-
-```
- ticker | n_jobs | with_date | with_category |   oldest   |   newest
---------+--------+-----------+---------------+------------+------------
- AMD    |   1087 |      1087 |          1087 | 2025-05-07 | 2026-06-01
- AVGO   |    338 |       338 |             0 | 2026-05-02 | 2026-06-01
- CDNS   |    623 |       623 |             0 | 2026-05-02 | 2026-06-01
- INTC   |    715 |       714 |             0 | 2026-05-02 | 2026-06-01
- MRVL   |    677 |       677 |             0 | 2026-05-02 | 2026-06-01
- MU     |   3024 |      3023 |          2858 | 2024-05-23 | 2026-05-31
- NVDA   |   2654 |      2654 |          2654 | 2026-05-02 | 2026-06-01
- QCOM   |   1985 |      1985 |          1985 | 2025-03-12 | 2026-05-31
- TXN    |    470 |       470 |             0 | 2025-02-05 | 2026-06-01
-```
-
-Nine tickers live, 11,573 jobs in today's snapshot. Three remaining
-(SNPS, ANSS, TSM) are blocked/skipped. Total rows in `hiring_signals`
-across all snapshots: ~62.9k (≈5–6 days of accumulated history as of EOD 9).
+- **Notebook connection cell:** `os` + `pandas` + `create_engine` + `load_dotenv()`; engine string from env vars; a small sanity `SELECT` as the output.
+- **Charts:** seaborn `whitegrid`; `figsize` ~`(10,5)`–`(11,6)`; `steelblue` for single-series bars; data labels via `ax.text`; `plt.tight_layout()`.
+- **Observations cells:** markdown, bold lead-in per observation + prose, ending with an "open question to test next." Written by Johann via the guided-questions method (§6.8). Header: "Observations — <topic> (Day N)".
+- **Commits:** notebooks committed **with outputs intact** (render on GitHub as portfolio pieces). Always `Restart & Run All` → Save before committing. Stage files **explicitly** (`git add <file>`), never blind `git add -A`; keep `.env` out of every commit.
+- **Build-in-public:** notebooks must render cleanly on public GitHub; milestones become weekly LinkedIn updates.
 
 ---
 
-## 9. Known issues / quirks
+## 9. Data state (current)
 
-- **Workday `posted_date` resolution caps at 30 days.** Workday returns
-  a relative phrase (`"Posted 30+ Days Ago"`), so anything older than a
-  month parses as `snapshot - 30`. AMD's Jibe and Eightfold tickers
-  (QCOM, MU) give real timestamps, hence the older `oldest` dates in §8.
-  Documented, not a bug.
-- **`category` is NULL for non-faceted Workday + Oracle HCM.** Workday's
-  `_paginate_workday` only stamps `category` when fetching by
-  `jobFamilyGroup` facet (NVDA). Oracle HCM has categories only in
-  aggregated facets, not per-job. CDNS, MRVL, INTC, AVGO, TXN all show
-  `with_category=0`. Either enrich via secondary requests or accept the
-  gap. Currently accepted.
-- **MU has ~166 jobs without category.** Some Eightfold postings don't
-  have the `department` field set. Minor, not actionable.
-- **`insert_jobs()` rowcount is cosmetic.** We print `len(rows)`
-  submitted, not actual new inserts, because psycopg2's `execute_values`
-  rowcount under `ON CONFLICT DO NOTHING` is unreliable. To know real
-  inserts: query the table.
-- **Skip message wording is slightly misleading.** When SNPS is disabled
-  the log says "ats=talentbrew, not yet implemented" but the fetcher
-  *is* implemented. Cosmetic.
-- **Oracle HCM URL encoding quirk.** The `finder` param uses semicolons
-  and commas as internal delimiters. `limit`, `sortBy`, `offset` go
-  inside `finder` (comma-separated), not as top-level `&` params.
-  Semicolons in `facetsList` must be percent-encoded (`%3B`). Python's
-  `requests` library will double-encode if you use the `params` dict —
-  the URL must be built manually as an f-string.
-- **Run time is ~20–30 min** for a full 9-ticker sweep. NVDA's faceted
-  mode (14 facets × pagination × sleep) is the bulk. Acceptable for
-  daily batch but could be optimized with concurrency.
-- **Location strings are unstandardized across ATSes.** "Santa Clara, CA"
-  vs "Santa Clara, California, USA" vs "USA - California - Santa Clara"
-  all appear depending on platform. Any geographic analysis needs a
-  normalization step. Not blocking, but planned for Day 10.
-
-### Resolved this day
-- ~~Transient `ConnectionResetError` mid-pagination needs retries~~ —
-  resolved Day 9 via `_request_with_retry` helper.
+- `hiring_signals`: ~**62,951** total historical rows; **~11,573** in the latest snapshot (9 tickers).
+- Snapshots are **point-in-time**, keyed by `snapshot_date`. **[CONFIRM]** whether the daily scrape is **automated** — highest-leverage open question (§11).
+- Geography normalization (Day 10): **87.1%** of latest-snapshot postings resolved to a country/region; 12.9% "Multiple"; **0.0%** unknown.
+- Region totals (latest snapshot, resolved): Asia 5,143 · North America 3,814 · Europe 434 · Middle East 401 · Latin America 276 · Oceania 8.
+- Top countries: US 3,611 · India 1,732 · Taiwan 1,183 · Singapore 1,005 · China 441 · Israel 373 · Japan 356 · Malaysia 271 · Canada 203 · Mexico 201.
 
 ---
 
-## 10. Key methodologies (reference)
+## 10. Progress log & key findings
 
-### cURL-bisection (Days 5, 7, 8)
+**Day 9 — `01_hiring_snapshot.ipynb` (footprint by ticker):**
+- MU leads the open-jobs book (~3,024) ahead of NVDA (~2,654) — surprising given NVDA's profile; Johann attributed it to Micron's *fab expansion / staffing megaprojects* (he did **not** specify US fabs — don't add that).
+- Raw counts overstate large/diversified firms; per-headcount, NVDA's hiring *intensity* (~6.3% open-role ratio) exceeds MU's (~5.7%).
+- AVGO anomaly: very large (~$1T mkt cap, ~37k employees) but a notably *small* open-jobs book.
+- Open question: is cross-ticker count driven by **geographic spread** or **role/sector breadth**?
 
-When a request works in the browser but not in Python:
-
-1. DevTools → Network → right-click the request → **Copy as cURL**.
-2. Paste in PowerShell. If it works, strip headers one at a time until
-   it breaks — that header was the gate.
-3. If it fails immediately with the **exact** browser headers from the
-   same machine/IP, the gate isn't header-based. It's stateful:
-   JS-issued cookies (`_abck` / `bm_sz` from Akamai/Imperva), browser
-   fingerprinting, etc. No amount of header tuning will help — you need
-   Playwright or curl-impersonate.
-
-This is how SNPS was diagnosed as blocked in ~3 steps instead of a long
-debugging spiral. Also confirmed TSM (403 on plain curl).
-
-### Two-layer ATS pattern
-
-Many companies stack a front-end portal on a different back-end ATS:
-- AMD = **Jibe** (front) + **iCIMS** (back)
-- SNPS = **TalentBrew** (front) + **Avature** (back)
-
-The Day 5 plan guessed "iCIMS for AMD" and Day 7 guessed "Avature for
-SNPS" — both based on the back-end. Live DevTools inspection revealed
-the front-end was different each time. **Always inspect the Network tab
-before assuming an ATS from plan docs or prior research.**
-
-### Plan-doc accuracy track record
-
-| Ticker | Plan-doc guess | Actual (via Network tab) |
-|--------|---------------|--------------------------|
-| AMD | iCIMS | Jibe |
-| SNPS | Avature | TalentBrew |
-| QCOM | TalentBrew | Eightfold |
-| TXN | Oracle HCM | Oracle HCM ✓ |
-
-Rule: always verify by Network tab inspection first. The plan is wrong
-more often than it's right.
-
-### Verification by 10-K (Day 9)
-
-For analysis claims involving headcount, market cap, or workforce trends,
-pull the most recent 10-K (or aggregator citing it) before committing
-numbers to the public notebook. Day 9 found that off-the-cuff employee
-counts (NVDA 36k, MU 48k, AVGO 37k) were all one fiscal year stale; the
-verified current numbers (42k, 53k, 33k) materially changed the AVGO
-story — the YoY decline (37k → 33k) was the *strongest* evidence for
-the consolidation-mode framing, not a footnote.
-
-Rule: any specific number that goes on the portfolio gets verified
-against a primary source (10-K, investor relations) before commit.
-
-### Retry placement (Day 9)
-
-When wrapping HTTP calls in retries, decorate the **smallest unit that
-makes one request**, not the surrounding loop. A retry on
-`_paginate_workday` would restart pagination from page 1 on a transient
-failure at page 47. A retry on the single `requests.post(...)` call
-retries only page 47, preserving progress. Same logic: smallest possible
-blast radius.
+**Day 10 — `02_hiring_geography.ipynb` (geographic spread) — DONE & pushed:**
+- Location normalizer: 462 distinct raw strings → country + region via a 3-pass classifier (country-token substring match → US state name/abbr → curated city overrides), plus accent-folding, punctuation normalization, and a "N Locations" multi-site rule. 0.0% unknown. Auditable/explainable in an interview.
+- Cross-ticker **region mix** (% of geo-resolved), a **concentration metric** (top-region share + regional HHI), and top-countries.
+- Findings (Johann's, pressure-tested): **Asia outweighs North America** even for US-listed firms (5,143 vs 3,814); **MU most concentrated** (74% Asia, HHI 0.608); **NVDA the Middle East outlier** (~17%, ≈3× any peer — Israel, its largest R&D base outside the US, from the 2020 Mellanox acquisition); **AVGO most US-centric** (68% NA); **Intel most globally distributed** (lowest HHI; only firm with material Latin America + Middle East presence).
+- Verified NVDA/Israel and Micron/Asia via web search before committing.
+- **Process note:** Claude twice over-attributed Day 9 claims (sharpened "fab expansion" → "US CHIPS-Act fabs"; invented "workforce shrank YoY"). Both corrected. See §6.10 — do not repeat.
+- Still-unproven claim in Johann's Day 10 observations: that Asian jobs are "production and manufacturing" — the geography data can't confirm role *type*. The **category analysis (next) is what tests it.**
 
 ---
 
-## 11. Day 10 plan
+## 11. Roadmap & prioritization (scoped to ~1–2 months / fall recruiting)
 
-In priority order:
+Triage hard against the deadline and shrinking hours. A finished, polished core beats a sprawling unfinished one. Bias toward work that compounds passively.
 
-1. **Geographic spread analysis** — addresses the open question teed
-   up in `01_hiring_snapshot.ipynb`'s observations cell. Use the
-   `location` field to compare cross-ticker geographic concentration
-   (US vs Asia vs EU, single-HQ vs distributed). **Real work item:**
-   location strings are unstandardized across ATSes — a normalization
-   step (regex extraction of country/region, or a manual mapping table
-   for the top ~30 location strings) is required before the analysis
-   means anything. New cells in `01_hiring_snapshot.ipynb` OR a new
-   `02_hiring_geography.ipynb` — decide based on how long the
-   normalization detour gets. If clean, append; if it sprawls, split.
+**HIGHEST-LEVERAGE — DO FIRST (compounds in the background):**
+- **[CONFIRM + likely ACTION] Automate the daily scrape.** The project's most valuable signal is the **time-series delta** (how hiring books change over time), which needs snapshots *accumulating*. If `load_hiring.py` isn't already scheduled (Windows Task Scheduler / cron), set that up **now** — every un-scraped day is permanently lost data, and this runs itself while Johann is in summer school. Confirm current state; automate if manual.
 
-2. **Category mix analysis** — the second open question from Day 9
-   observations. Limited coverage: only NVDA, AMD, QCOM, MU have
-   per-job categories. Each uses a different taxonomy (Workday
-   `jobFamilyGroup` vs Jibe `categories[].name` vs Eightfold
-   `department`), so cross-ticker comparison needs a mapping layer.
-   Practical scope: do *within-ticker* category breakdowns first
-   (one stacked bar per ticker showing role-mix), defer cross-ticker
-   normalization until a clear analysis use-case demands it.
+**CORE (must-do for the portfolio):**
+1. **Category mix analysis** (`03_hiring_category.ipynb` — Day 10 priority 2). Does role *type* vary by region/ticker (e.g., Asia weighted to manufacturing/ops vs. US to design/R&D)? Directly tests the unproven "production and manufacturing" claim. **Expect the same normalization problem as locations** — `category` is almost certainly ATS-specific; profile it first (§6.4).
+2. **Snapshot-over-snapshot delta** (`04_hiring_trends.ipynb` — Day 10 priority 3). The flow signal: who's accelerating/decelerating. Depends on accumulated snapshots (hence the automation priority).
+3. **The dashboard (capstone).** Interactive, multi-insight, showing how signals relate. **Tool: lean Tableau Public** — free public-URL publishing = a clean portfolio link, which fits the build-in-public goal (Power BI's free public-web sharing is more restricted). **Verify both tools' current free/publishing terms when scoping** (they change). Decide early; don't build twice. This is a brand-new skill for Johann — budget learning time.
+4. **One concrete AI feature — pin it down, don't let it balloon.** Recommended: an **AI "insight narrator"** — feed the real analysis numbers to the Claude API and have it generate a plain-English readout of a chart/finding (buildable via the API-in-artifacts pattern). Ties to his **GEO background** and his "learn what Claude's doing" goal. Avoid vague "AI integration" that dilutes the project's real strength (engineering + verification rigor).
 
-3. **Snapshot-over-snapshot delta** — by Day 10 the DB has 2–3 days
-   of accumulated history per ticker. A simple delta query (jobs
-   added / removed since yesterday's snapshot, per ticker) becomes
-   meaningful and gives the first true *flow* signal. Worth a small
-   cell at end of `01_` to start tracking.
+**STRETCH (only if time):**
+- Patents pipeline + analysis (PatentsView). Currently a download spike only.
+- **Cross-signal join (hiring × patents)** — where "how aspects relate" gets powerful; would elevate the dashboard. May get *promoted* to core if the dashboard leans on it — decide with Johann.
+- Workday per-job location enrichment (recover the 12.9% "Multiple" bucket).
 
-### Stretch
-
-- **Hiring velocity** — for tickers with real `posted_date` coverage
-  (AMD, MU, QCOM, TXN), bucket postings into weekly bins and chart
-  velocity. Workday tickers limited to the past 30 days but still
-  show recent trend. Powerful chart for the portfolio.
-- **Cross-signal join with patents.** Both tables share `ticker` and
-  `snapshot_date`. First exploratory join: per-ticker monthly counts of
-  (new patents, new job postings) side-by-side. Sets up the
-  cross-signal narrative the project name promises.
-- **Concurrent fetching.** `asyncio` + `aiohttp` or
-  `ThreadPoolExecutor` to fetch multiple tickers in parallel. Would
-  cut run time from ~25 min to ~5 min. Not blocking but nice for
-  daily ops.
-- **Playwright path for SNPS + TSM.** Still deferred. Worth
-  revisiting only if the analysis layer hits a place where the missing
-  three tickers are a real gap.
-- **Per-job category enrichment** for non-faceted Workday + Oracle
-  HCM. Low priority; revisit when an analysis specifically wants it.
+**CUT first if the deadline tightens:** deep patents work and the cross-signal join. Don't sacrifice a polished dashboard + finished hiring analyses for them.
 
 ---
 
-## 12. How to start the next session
+## 12. Open decisions / TODOs
 
-Hand Claude this file plus a short prompt like `start day 10`. Claude should:
-
-1. Read this HANDOFF in full.
-2. Open §11 and pick the top priority that isn't already done.
-3. Ask before writing any code if there's a judgment call (scope
-   trade-off, dependency decision, architecture choice for analysis).
-4. For analysis work, default to extending `01_hiring_snapshot.ipynb`
-   unless the new analysis is structurally separate enough to warrant
-   `02_*.ipynb`. Commit notebooks with outputs intact.
+- **[CONFIRM]** Is the daily scrape automated? (Drives §11.)
+- **[DECIDE]** Tableau vs Power BI — lean Tableau Public; verify current terms at scoping time.
+- **[DECIDE]** Exact AI feature scope — recommend the "insight narrator"; confirm with Johann.
+- **[DECIDE]** Promote cross-signal (hiring × patents) to core, or keep stretch?
+- **[CONFIRM]** Repo tree, `schema.sql`, and patents table schema against the actual repo.
+- **[TRACK]** Keep a running "skills demonstrated" list (§4) for the resume.
+- Open analytical question (Day 9; partly answered by geography, fully once category is done): is cross-ticker hiring volume driven by geographic spread or role breadth?
 
 ---
 
-## 13. Useful commands
+## 13. Next session — exact starting point
 
-Activate venv:
-```powershell
-venv\Scripts\Activate.ps1
-```
-
-Run the hiring loader:
-```powershell
-python etl/load_hiring.py
-```
-
-DB sanity check (today's snapshot, per-ticker):
-```powershell
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "SELECT ticker, COUNT(*) AS n_jobs, COUNT(posted_date) AS with_date, COUNT(category) AS with_category, MIN(posted_date) AS oldest, MAX(posted_date) AS newest FROM hiring_signals WHERE snapshot_date = CURRENT_DATE GROUP BY ticker ORDER BY ticker;"
-```
-
-Total rows across all snapshots:
-```powershell
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d sector_signals -c "SELECT COUNT(*) FROM hiring_signals;"
-```
-
-Test an endpoint without Python (cURL bisection):
-```powershell
-curl.exe -s -o test.json -w "size=%{size_download} status=%{http_code}`n" "<URL>" -H "User-Agent: Mozilla/5.0 ..." -H "X-Requested-With: XMLHttpRequest" -H "Referer: <listings page>"
-```
-
-Open the analysis notebook (VS Code):
-```powershell
-code analysis/01_hiring_snapshot.ipynb
-```
-Then select the venv kernel via top-right "Select Kernel" if VS Code
-defaults to global Python.
+Day 10 (geography) is shipped and pushed. Begin Day 11 by:
+1. Reading this handoff fully.
+2. **Confirming whether the daily scrape is automated** (§11 top item). If not, set it up first — highest leverage, compounds.
+3. Then start **category mix analysis** (`03_hiring_category.ipynb`): profile the `category` field across ATSes first (§6.4), surface the placement/normalization call to Johann (§6.3), proceed iteratively (§6.5–6.7), write observations via guided questions + pressure-test (§6.8), and explain techniques as you go (§4/§6.9).
