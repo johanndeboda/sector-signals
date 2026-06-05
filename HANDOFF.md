@@ -2,7 +2,7 @@
 
 **Last updated:** end of Day 10 (2026-06-02)
 **Owner:** Johann
-**Repo:** `sector-signals` (local: `C:\Users\Johan\sector-signals`, Windows, PowerShell, venv, VS Code)
+**Repo:** `sector-signals` — public: https://github.com/johanndeboda/sector-signals (local: `C:\Users\Johan\sector-signals`, Windows, PowerShell, venv, VS Code). README and this handoff are committed and current as of Day 10.
 
 > This document is the single source of truth between work sessions. It is updated at the end of each working day. The next session must read it **in full** before doing anything. Items marked **[CONFIRM]** couldn't be verified from memory — check against the repo before relying on them.
 
@@ -128,7 +128,7 @@ The working style that's been effective. Match it.
   - `data/` — local raw cache (gitignored). `venv/` (gitignored).
   - `interview_moments.md` — Johann's running interview-talking-points notes.
   - `requirements.txt`, `.env.example`, `.gitignore`, `HANDOFF.md`, `README.md`.
-  - **[CLEANUP]** a stray `notebooks/` folder exists (leftover from the Day-1 plan; real work is in `analysis/`). Delete if empty/legacy.
+  - On GitHub the tree is `analysis/`, `etl/`, `sql/` + the top-level files above (verified against the public repo, Day 10). A stray local `notebooks/` folder may exist from the Day-1 plan but is **not committed** (empty folders don't push), so it's local-only clutter at most — real work is in `analysis/`.
 
 - **Schema (`sql/schema.sql`) — 6 tables, only one populated:**
   - `companies` — seeds a **12-ticker target universe**: CDNS, SNPS, ANSS (EDA); NVDA, AMD, QCOM, AVGO, MRVL (Fabless); INTC, MU, TXN (IDM); TSM (Foundry). Columns: ticker, name, segment, hq_country.
@@ -237,7 +237,7 @@ Scope was deliberately reduced on Day 10 to **one signal done well**: depth + un
 
 - **[CONFIRM]** Is the daily scrape automated? (Drives §10.)
 - **[CONFIRM]** README screenshot: export the geography chart to `docs/` and add it.
-- **[CLEANUP]** Delete the stray `notebooks/` folder (if empty/legacy) and consider dropping the dead `job_postings` table.
+- **[CLEANUP]** The dead `job_postings` table is still in the schema — consider dropping it to avoid confusion. (The stray local `notebooks/` folder is not on GitHub, so no repo action needed; delete locally if it bugs you.)
 - **[DECIDE later]** Tableau vs Power BI — leaning Tableau Public; verify current free/publishing terms at scoping time.
 - **[DECIDE later]** Whether to promote patents (cross-signal) from future to core — only if core finishes early.
 - **[TRACK]** Keep a running "skills demonstrated" list (§4) for the resume.
