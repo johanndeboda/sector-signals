@@ -251,3 +251,6 @@ Day 10 shipped: geography analysis (pushed), corrected README, tightened scope, 
 1. Reading this handoff fully.
 2. **Confirming whether the daily scrape is automated** (§10 top item). If not, set it up first — highest leverage, compounds.
 3. Then start **category mix analysis** (`03_hiring_category.ipynb`): profile the `category` source field across ATSes first (§5.4), surface the placement/normalization call to Johann (§5.3), proceed iteratively (§5.5–5.7), write observations via guided questions + pressure-test (§5.8), and explain techniques / offer a walkthrough as you go (§4, §5.9).
+
+Add-on
+- This is just something I found but I want to check how many patents with multiple semiconductor company assignees there were if it is not too much work, I am thinking maybe do I just re-run the load_assignnees.py script or no? Make this the very first thing I look into 
