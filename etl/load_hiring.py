@@ -50,7 +50,7 @@ COMPANIES_CONFIG = {
     # ---- WORKDAY (Day 4 targets) ----
     "NVDA": {
         "ats": "workday",
-        "enabled": False,
+        "enabled": True,
         "host": "nvidia.wd5.myworkdayjobs.com",
         "tenant": "nvidia",
         "site": "NVIDIAExternalCareerSite",
@@ -59,25 +59,25 @@ COMPANIES_CONFIG = {
     },
     "CDNS": {
         "ats": "workday",
-        "enabled": False,
+        "enabled": True,
         "host": "cadence.wd1.myworkdayjobs.com",
         "tenant": "cadence",
         "site": "External_Careers",
     },
     "MRVL": {
         "ats": "workday",
-        "enabled": False,
+        "enabled": True,
         "host": "marvell.wd1.myworkdayjobs.com",
         "tenant": "marvell",
         "site": "MarvellCareers",
     },
 
     # ---- WORKDAY (suspected, not yet verified) — Day 5 ----
-    "QCOM": {"ats": "eightfold", "enabled": False,
+    "QCOM": {"ats": "eightfold", "enabled": True,
         "host": "careers.qualcomm.com", "domain": "qualcomm.com", "ticker": "QCOM"},
-    "INTC": {"ats": "workday", "enabled": False, "host": "intel.wd1.myworkdayjobs.com", "tenant": "intel", "site": "External"},
-    "AVGO": {"ats": "workday", "enabled": False, "host": "broadcom.wd1.myworkdayjobs.com", "tenant": "broadcom", "site": "External_Career"},
-    "MU": {"ats": "eightfold", "enabled": False,
+    "INTC": {"ats": "workday", "enabled": True, "host": "intel.wd1.myworkdayjobs.com", "tenant": "intel", "site": "External"},
+    "AVGO": {"ats": "workday", "enabled": True, "host": "broadcom.wd1.myworkdayjobs.com", "tenant": "broadcom", "site": "External_Career"},
+    "MU": {"ats": "eightfold", "enabled": True,
        "host": "careers.micron.com", "domain": "micron.com", "ticker": "MU"},
 
     # ---- OTHER ATS (Day 5+) ----
