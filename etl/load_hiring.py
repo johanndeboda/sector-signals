@@ -162,7 +162,8 @@ def fetch_workday_facets(cfg: dict) -> list[tuple[str, str, str, int]]:
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json",
                "Content-Type": "application/json"}
     body = {"appliedFacets": {}, "limit": 1, "offset": 0, "searchText": ""}
-    r = _request_with_retry("POST", url, headers=headers, json=body, timeout=30)    r.raise_for_status()
+    r = _request_with_retry("POST", url, headers=headers, json=body, timeout=30)    
+    r.raise_for_status()
     data = r.json()
     
  
