@@ -618,7 +618,7 @@ def fetch_eightfold_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
 
         for p in positions:
             posted = (datetime.fromtimestamp(p["postedTs"]).date()
-                      if p.get("postedTs") else None
+                      if p.get("postedTs")
                       else None
                       )
             yield {
