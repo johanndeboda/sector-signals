@@ -370,7 +370,7 @@ def fetch_jibe_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
         for item in jobs:
             # Each list item wraps the real job under a "data" key.
             j = item.get("data", {})
-            raw_id = j.get("req_id") or j.get("slug") or ""
+            raw_id = j.get("req_id") or j.get("slug") or ""   
             if not raw_id:
                 continue  # skip anything we can't key on
 
@@ -618,7 +618,9 @@ def fetch_eightfold_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
 
         for p in positions:
             posted = (datetime.fromtimestamp(p["postedTs"]).date()
-                      if p.get("postedTs") else None)
+                      if p.get("postedTs") else None
+                      else None
+                      )
             yield {
                 "job_id":        f"{ticker}:{p['displayJobId']}",
                 "ticker":        ticker,

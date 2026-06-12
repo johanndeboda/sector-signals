@@ -80,10 +80,7 @@ Looked into Synopsys careers page using DevTools and found out that it is not un
 
 
 
-
-            To do:
-
-## Week 1
+## Week 2
 - [Day 8] : 
 
 Category will be null for TXN
@@ -97,10 +94,28 @@ Quick recap:
     Oracle HCM — GET JSON, nested envelope, ISO dates, no per-job category
     TalentBrew — HTML inside JSON, needs session cookies
 
-## Week 1
+## Week 2
 - [Day 9] : 
 
 Jupyter notebook analyses on ipynb file
 
-## Week 1
+## Week 2
 - [Day 10] : 
+
+Jupyter notebook analyses on ipynb file
+
+## Week 2
+- [Day 11-14] : 
+
+Completed ETL script, took major pivots to reduce project length to ensure understanding, leave opening and flexibility for future expansions if time allows
+
+Utilized CHATGPT to look over finished ETL scripts to ensure understanding of code, logic, purpose, and structure.
+
+Scope limitations :
+    - Covers only 9 of 12 intially planned companies, LIST EXCLUDED BELOW
+        - SNPS
+        - TSM
+        - ANSS
+
+    - Deduplication in patent filings, look into how many rows were removed and add result below this bullet point
+        - INSERT
