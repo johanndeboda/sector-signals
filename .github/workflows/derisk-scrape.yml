@@ -1,0 +1,55 @@
+name: derisk-scrape-test
+
+on:
+  workflow_dispatch:        # run manually from the Actions tab
+
+jobs:
+  test-scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: sector
+          POSTGRES_PASSWORD: sector
+          POSTGRES_DB: sector_signals
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+
+    env:
+      DB_USER: sector
+      DB_PASSWORD: sector
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: sector_signals
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: System deps
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client libpq-dev
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Apply schema to throwaway DB
+        env: { PGPASSWORD: sector }
+        run: psql -h localhost -U sector -d sector_signals -f sql/schema.sql
+
+      - name: Run the scrape (the actual test)
+        run: python etl/load_hiring.py
+
+      - name: Show coverage
+        env: { PGPASSWORD: sector }
+        run: |
+          echo "=== rows per ticker ==="
+          psql -h localhost -U sector -d sector_signals -c "SELECT ticker, count(*) FROM hiring_signals GROUP BY ticker ORDER BY ticker;"
+          echo "=== totals ==="
+          psql -h localhost -U sector -d sector_signals -c "SELECT count(DISTINCT ticker) AS tickers, count(*) AS rows FROM hiring_signals;"
