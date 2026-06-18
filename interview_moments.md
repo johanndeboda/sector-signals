@@ -105,7 +105,7 @@ Jupyter notebook analyses on ipynb file
 Jupyter notebook analyses on ipynb file
 
 ## Week 2
-- [Day 11-14] : 
+- [Day 11-18] : 
 
 Completed ETL script, took major pivots to reduce project length to ensure understanding, leave opening and flexibility for future expansions if time allows
 
@@ -119,3 +119,18 @@ Scope limitations :
 
     - Deduplication in patent filings, look into how many rows were removed and add result below this bullet point
         - INSERT
+
+## Week 2
+- [Day 19] : 
+
+De-Risk tested the cloud set up before doing to work to make sure it would be feasible by creating a github action to see if the scraper would run outside of a local run which ran good.
+
+This cloud set up is to automate the scrape daily without needing to run it on my computer locally and it being on
+
+Given that my daily hiring snapshots were inconsistent in regards to how many companies were captured, I added a completeness check  to make sure the runs capture all 9 companies and not incomplete data
+
+
+
+ (HALF 2)
+
+Tweaked load_hiring.py to create a connection to postgres after jobs have been loaded instead of opening connection and keeping it open throughout the entire program, so a failed connection for one ticker doesn't affect the others as Neon drops idle connections alongside a guard to make sure that it only saves the batch if all of it comes through.
