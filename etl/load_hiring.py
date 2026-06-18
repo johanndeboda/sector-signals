@@ -25,6 +25,7 @@ import os
 import time
 from datetime import date, datetime, timezone, timedelta
 from typing import Iterator
+import sys
 
 import psycopg2
 from psycopg2.extras import execute_values
@@ -818,8 +819,8 @@ FETCHERS = {
 # ============================================================
 # MAIN
 # ============================================================
-def main():
-    conn = psycopg2.connect(
+def connect():
+    return psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=os.getenv("DB_PORT", "5432"),
         dbname=os.getenv("DB_NAME"),
@@ -827,7 +828,10 @@ def main():
         password=os.getenv("DB_PASSWORD"),
     )
 
-    total_submitted = 0
+def main():
+    all_rows = []
+    expected = []    # the tickers we require (enabled + fetcher registered)
+    succeeded = []   # the ones that finished without error
     started = datetime.now(timezone.utc)
 
     for ticker, cfg in COMPANIES_CONFIG.items():
@@ -841,23 +845,41 @@ def main():
                   "— skipping")
             continue
 
+        expected.append(ticker)
         print(f"\nFetching {ticker} ({cfg['ats']})...")
         try:
             rows = list(fetcher(ticker, cfg))
             rows = deduplicate_jobs(rows)
-            n = insert_jobs(conn, rows)
-            total_submitted += n
-            print(f"  {ticker}: submitted {n} rows")
+            all_rows.extend(rows)
+            succeeded.append(ticker)
+            print(f"  {ticker}: fetched {len(rows)} rows")
         except requests.HTTPError as e:
             print(f"  {ticker}: HTTP error — {e}")
         except Exception as e:
             print(f"  {ticker}: failed — {type(e).__name__}: {e}")
 
+# NEW
+    # ---- completeness guard ----
+    # Only write if every expected ticker succeeded. A partial run (e.g. 6/9)
+    # would create fake swings in any time-series, so skip the write entirely
+    # and exit non-zero so the miss is visible (red X in the Action).
+    missing = [t for t in expected if t not in succeeded]
+    if missing:
+        print(f"\nINCOMPLETE: {len(succeeded)}/{len(expected)} succeeded. "
+              f"Missing: {', '.join(missing)}. Snapshot NOT written.")
+        sys.exit(1)
+
+    total_submitted = 0
+    if all_rows:
+        conn = connect()
+        try:
+            total_submitted = insert_jobs(conn, all_rows)
+        finally:
+            conn.close()
+
     elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-    print(f"\nDone. Submitted {total_submitted} rows in {elapsed:.1f}s.")
-    print("(Note: 'submitted' counts what we sent to INSERT — actual new rows "
-          "depends on ON CONFLICT skips. Query the table to confirm.)")
-    conn.close()
+    print(f"\nDone. Submitted {total_submitted} rows in {elapsed:.1f}s "
+          f"({len(succeeded)}/{len(expected)} tickers).")
 
 
 if __name__ == "__main__":
