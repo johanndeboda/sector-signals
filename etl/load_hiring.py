@@ -858,7 +858,7 @@ def main():
         except Exception as e:
             print(f"  {ticker}: failed — {type(e).__name__}: {e}")
 
-# NEW
+    # NEW
     # ---- completeness guard ----
     # Only write if every expected ticker succeeded. A partial run (e.g. 6/9)
     # would create fake swings in any time-series, so skip the write entirely
