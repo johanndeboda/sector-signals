@@ -6,7 +6,11 @@ A data pipeline that scrapes and analyzes **hiring signals** across major semico
 
 ## Thesis
 
+Given my experience consulting for Cadence, a semiconductor company within the niche of EDA, I found out that Cadence stands strongly within the integration and implementation of AI within their workflows and operations. Given this, it made me curious as to how AI and the constant evolution and advancements of AI has and currently reshapes the semiconductor industry within hiring and how well they do financially. Alongside this, I wanted to also note any possible technologies or innovations that has affected or affects the semiconductor industry intensively.
+
 What do hiring patterns reveal about a company's strategy — geographic expansion, R&D focus, operational scale — before it shows up in earnings? Public job postings are a free, structured, leading signal of corporate intent. This project collects, normalizes, stores, and analyzes them to find out.
+
+
 
 ## What's built
 
