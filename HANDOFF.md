@@ -276,3 +276,5 @@ Day 12 shipped the full cloud automation (scheduled scrape → Neon, completenes
 4. **Cross-signal (hiring × patents, AI-leaning)** is the other near-term core item and needs no accumulation wait — see §10 for the pivot decisions (lean AI; keep patents bounded; pick the AI-patent definition when building).
 
 The trends/v2 clock started 2026-06-17 — once there's ~3–4 weeks of clean complete snapshots (≈ mid-July), `04_hiring_trends.ipynb` becomes buildable (complete-snapshots only).
+
+Post-handoff note (Day 12 — first auto-run): the scheduled cron fired unattended ✓, but AMD (jibe) returned a 403 — intermittent anti-bot on a GitHub datacenter IP (it worked from GitHub the day before). The completeness guard did its job: 8/9 → no snapshot written, run failed (correct — no partial data). If it's a one-off, do nothing (the next run resumes). If AMD keeps 403-ing, harden the Jibe fetcher — add a 403/backoff retry (it currently retries only connection/timeout errors). To recover a single missed day, re-run locally, not via the Action (same IPs). 
