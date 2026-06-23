@@ -20,6 +20,7 @@ EDGAR returns 3 quarters/year, not always 4 due to it being embedded in annual 1
 Tested PatentsView API for patent ETL plan; turns out it migrated to USPTO Open Data Portal and the old endpoint redirects. Migration to ODP completed March 20, 2026. Saved myself a day of building against a dead API. Pivoting to ODP bulk downloads — stronger resume signal anyway since ODP is the new official source. Lesson: probe data sources before committing to them. Five minutes of testing > a day of debugging.
 
 [Week 1, Day 2.2]
+
 Built ETL targeting PatentsView PatentSearch API. First test call got DNS
 resolution failure. Investigated and discovered the API was decommissioned
 March 20, 2026, with data migrated to bulk TSV downloads on ODP.
@@ -133,4 +134,21 @@ Given that my daily hiring snapshots were inconsistent in regards to how many co
 
  (HALF 2)
 
-Tweaked load_hiring.py to create a connection to postgres after jobs have been loaded instead of opening connection and keeping it open throughout the entire program, so a failed connection for one ticker doesn't affect the others as Neon drops idle connections alongside a guard to make sure that it only saves the batch if all of it comes through.
+Tweaked load_hiring.py to create a connection to postgres after jobs have been loaded instead of opening connection and keeping it open throughout the entire program, so a failed connection for one ticker doesn't affect the others also as Neon drops what it deems as idle connections 
+    + a guard to make sure that it only saves the batch if all of it comes through.
+
+
+
+## Week 2
+- [Day 20] : 
+
+Pivoted towards a title classifier approach in order to categorize the job listings that have been gathered via keywords as only 5 of 9 were scrapable with categories alongside an imbalance in the category count which could sway analyses.
+
+Ran through ai thorughq quick iterations to quickly skim through data and classify as needed, goal was to go below 5% but not much lower to avoid uncessary time overfitting.
+    Also audited inside of buckets through ai to ensure accuracy
+
+Performed analyses on the hiring of the semiconductor companies while considering the companies and what they specialize in alongside prominence of AI roles.
+
+## Week 2
+- [Day 21] : 
+
