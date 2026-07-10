@@ -118,15 +118,13 @@ Scope limitations :
         - TSM
         - ANSS
 
-    - Deduplication in patent filings, look into how many rows were removed and add result below this bullet point
-        - INSERT
 
 ## Week 2
 - [Day 19] : 
 
 De-Risk tested the cloud set up before doing to work to make sure it would be feasible by creating a github action to see if the scraper would run outside of a local run which ran good.
 
-This cloud set up is to automate the scrape daily without needing to run it on my computer locally and it being on
+This cloud set up is to automate the scrape daily without needing to run it on my computer locally, venv prevents github from seeing account info so had to move it to github secrets
 
 Given that my daily hiring snapshots were inconsistent in regards to how many companies were captured, I added a completeness check  to make sure the runs capture all 9 companies and not incomplete data
 

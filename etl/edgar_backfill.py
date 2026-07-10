@@ -87,55 +87,62 @@ def fetch_company_facts(cik: str) -> dict:
 
 def extract_quarterly_series(facts: dict, candidates: list[str]) -> dict:
     """
-    Given the full Company Facts JSON and a list of candidate concept names,
-    return a dict {quarter_end_date: value} of QUARTERLY (10-Q) data points
-    in USD from the past N years.
-
-    Tries each candidate concept name; returns first one with data.
+    Return {quarter_end_date: value} of DISCRETE quarterly values.
+    Q1-Q3 come from 3-month facts; Q4 is derived as (full-year - 9-month YTD),
+    because 10-Ks report only the full year, never a standalone Q4.
     """
     us_gaap = facts.get("facts", {}).get("us-gaap", {})
 
     for concept in candidates:
         if concept not in us_gaap:
             continue
-
         units = us_gaap[concept].get("units", {})
-        # Most financial concepts are in USD; some (like share counts) aren't.
         if "USD" not in units:
             continue
 
-        series = {}
-        for entry in units["USD"]:
-            # 'fp' = fiscal period: Q1/Q2/Q3/FY. We want quarterly only.
-            # 'form' = filing type: 10-Q (quarterly) or 10-K (annual).
-            # We accept quarterly data points from either form (10-K often
-            # includes Q4 numbers via the FY total minus prior quarters,
-            # but EDGAR pre-tags Q4 separately too).
-            fp = entry.get("fp", "")
-            form = entry.get("form", "")
-            end_str = entry.get("end")
-            val = entry.get("val")
+        quarterly = {}   # end_date   -> {"val","filed"}          3-month facts
+        ytd9 = {}        # start_date -> {"end","val","filed"}    9-month YTD
+        annual = {}      # start_date -> {"end","val","filed"}    full fiscal year
 
-            if not end_str or val is None:
+        for e in units["USD"]:
+            start_str, end_str, val = e.get("start"), e.get("end"), e.get("val")
+            if not start_str or not end_str or val is None:
                 continue
-
-            end_date = date.fromisoformat(end_str)
-            if end_date < CUTOFF_DATE:
+            start_d = date.fromisoformat(start_str)
+            end_d = date.fromisoformat(end_str)
+            if end_d < CUTOFF_DATE:
                 continue
+            days = (end_d - start_d).days
+            filed = e.get("filed", "")
 
-            # Keep quarterly data points only. fp in {Q1,Q2,Q3} are clean
-            # quarter values. We skip FY (annual sum) to avoid double-counting.
-            if fp not in ("Q1", "Q2", "Q3", "Q4"):
-                continue
+            if 80 <= days <= 100:            # discrete quarter
+                cur = quarterly.get(end_d)
+                if cur is None or filed > cur["filed"]:
+                    quarterly[end_d] = {"val": float(val), "filed": filed}
+            elif 250 <= days <= 295:         # 9-month YTD
+                cur = ytd9.get(start_d)
+                if cur is None or filed > cur["filed"]:
+                    ytd9[start_d] = {"end": end_d, "val": float(val), "filed": filed}
+            elif 350 <= days <= 380:         # full fiscal year
+                cur = annual.get(start_d)
+                if cur is None or filed > cur["filed"]:
+                    annual[start_d] = {"end": end_d, "val": float(val), "filed": filed}
 
-            # If multiple filings report the same quarter (amendments,
-            # restatements), latest filed wins — sort by 'filed' date.
-            existing = series.get(end_date)
-            if existing is None or entry.get("filed", "") > existing["filed"]:
-                series[end_date] = {"val": float(val), "filed": entry.get("filed", "")}
+        if not quarterly and not annual:
+            continue
+
+        series = {d: r["val"] for d, r in quarterly.items()}
+
+        # Q4 = full year - 9-month YTD, matched on shared fiscal-year START date.
+        for start_d, ann in annual.items():
+            if ann["end"] in series:
+                continue                     # a real 3-month Q4 was filed
+            y9 = ytd9.get(start_d)
+            if y9 is not None:
+                series[ann["end"]] = ann["val"] - y9["val"]
 
         if series:
-            return {d: r["val"] for d, r in series.items()}
+            return series
 
     return {}
 
@@ -212,6 +219,15 @@ def main():
     engine = create_engine(DB_URL)
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
+
+    # Make EDGAR the single source of truth: clear these tickers first so old
+    # yfinance rows (calendar-dated) can't linger as near-duplicate quarters.
+    with engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM financials_quarterly WHERE ticker = ANY(:tks)"),
+            {"tks": list(TICKER_TO_CIK)},
+        )
+    print(f"Cleared existing rows for {len(TICKER_TO_CIK)} EDGAR tickers.\n")
 
     print(f"Backfilling EDGAR data for {len(TICKER_TO_CIK)} tickers...")
     print(f"Cutoff date: {CUTOFF_DATE} (~{YEARS_BACK} years back)\n")
