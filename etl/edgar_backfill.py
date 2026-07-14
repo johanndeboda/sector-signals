@@ -29,7 +29,7 @@ DB_URL = (
 )
 
 # SEC requires a User-Agent identifying you. Replace with your real email.
-SEC_USER_AGENT = "Johan (sector-signals project) johan@example.com"
+SEC_USER_AGENT = f"Johann (sector-signals project) {os.getenv('SEC_USER_AGENT_EMAIL')}"
 
 # CIK = SEC's permanent ID per company. Padded to 10 digits in URL.
 # Looked up from https://www.sec.gov/cgi-bin/browse-edgar
@@ -60,6 +60,7 @@ CONCEPT_CANDIDATES = {
     "rd_spend": [
         "ResearchAndDevelopmentExpense",
         "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
+        "ResearchAndDevelopmentExpenseSoftwareExcludingAcquiredInProcessCost",
     ],
     "net_income": [
         "NetIncomeLoss",
@@ -90,19 +91,26 @@ def extract_quarterly_series(facts: dict, candidates: list[str]) -> dict:
     Return {quarter_end_date: value} of DISCRETE quarterly values.
     Q1-Q3 come from 3-month facts; Q4 is derived as (full-year - 9-month YTD),
     because 10-Ks report only the full year, never a standalone Q4.
+
+    Facts are gathered across ALL candidate concepts, not just the first with
+    data: a company can tag the same line under sibling concepts across filings
+    (e.g. CDNS files quarterlies under ResearchAndDevelopmentExpense but the 10-K
+    annual under ...SoftwareExcludingAcquiredInProcessCost). Candidates are in
+    priority order — on a period collision the earlier concept wins; later ones
+    only fill periods the primary lacks. Within one concept, latest-filed wins.
     """
     us_gaap = facts.get("facts", {}).get("us-gaap", {})
 
-    for concept in candidates:
+    quarterly = {}   # end_date   -> {"val","filed","concept"}   3-month facts
+    ytd9 = {}        # start_date -> {"end","val","filed","concept"}  9-month YTD
+    annual = {}      # start_date -> {"end","val","filed","concept"}  full year
+
+    for concept in candidates:                       # priority order
         if concept not in us_gaap:
             continue
         units = us_gaap[concept].get("units", {})
         if "USD" not in units:
             continue
-
-        quarterly = {}   # end_date   -> {"val","filed"}          3-month facts
-        ytd9 = {}        # start_date -> {"end","val","filed"}    9-month YTD
-        annual = {}      # start_date -> {"end","val","filed"}    full fiscal year
 
         for e in units["USD"]:
             start_str, end_str, val = e.get("start"), e.get("end"), e.get("val")
@@ -115,36 +123,36 @@ def extract_quarterly_series(facts: dict, candidates: list[str]) -> dict:
             days = (end_d - start_d).days
             filed = e.get("filed", "")
 
-            if 80 <= days <= 100:            # discrete quarter
+            # write if empty (any concept fills a gap), or newer fact from the
+            # SAME concept (latest-filed). A different, higher-priority concept
+            # already holding the slot is never overwritten.
+            if 80 <= days <= 100:            # discrete quarter — key: end_date
                 cur = quarterly.get(end_d)
-                if cur is None or filed > cur["filed"]:
-                    quarterly[end_d] = {"val": float(val), "filed": filed}
-            elif 250 <= days <= 295:         # 9-month YTD
+                if cur is None or (cur["concept"] == concept and filed > cur["filed"]):
+                    quarterly[end_d] = {"val": float(val), "filed": filed, "concept": concept}
+            elif 250 <= days <= 295:         # 9-month YTD — key: start_date
                 cur = ytd9.get(start_d)
-                if cur is None or filed > cur["filed"]:
-                    ytd9[start_d] = {"end": end_d, "val": float(val), "filed": filed}
-            elif 350 <= days <= 380:         # full fiscal year
+                if cur is None or (cur["concept"] == concept and filed > cur["filed"]):
+                    ytd9[start_d] = {"end": end_d, "val": float(val), "filed": filed, "concept": concept}
+            elif 350 <= days <= 380:         # full fiscal year — key: start_date
                 cur = annual.get(start_d)
-                if cur is None or filed > cur["filed"]:
-                    annual[start_d] = {"end": end_d, "val": float(val), "filed": filed}
+                if cur is None or (cur["concept"] == concept and filed > cur["filed"]):
+                    annual[start_d] = {"end": end_d, "val": float(val), "filed": filed, "concept": concept}
 
-        if not quarterly and not annual:
-            continue
+    if not quarterly and not annual:
+        return {}
 
-        series = {d: r["val"] for d, r in quarterly.items()}
+    series = {d: r["val"] for d, r in quarterly.items()}
 
-        # Q4 = full year - 9-month YTD, matched on shared fiscal-year START date.
-        for start_d, ann in annual.items():
-            if ann["end"] in series:
-                continue                     # a real 3-month Q4 was filed
-            y9 = ytd9.get(start_d)
-            if y9 is not None:
-                series[ann["end"]] = ann["val"] - y9["val"]
+    # Q4 = full year - 9-month YTD, matched on shared fiscal-year START date.
+    for start_d, ann in annual.items():
+        if ann["end"] in series:
+            continue                     # a real 3-month Q4 was filed
+        y9 = ytd9.get(start_d)
+        if y9 is not None:
+            series[ann["end"]] = ann["val"] - y9["val"]
 
-        if series:
-            return series
-
-    return {}
+    return series
 
 
 def build_quarter_rows(ticker: str, facts: dict) -> list[dict]:
