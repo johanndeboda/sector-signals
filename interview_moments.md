@@ -150,3 +150,39 @@ Performed analyses on the hiring of the semiconductor companies while considerin
 ## Week 2
 - [Day 21] : 
 
+Should note that some company financials have differing fiscal year-end dates
+
+for scatterplots, company reveue differs greatly, so used log scale
+
+Should've looked through financial data and verified completeness, found that there were 182-day gaps (missing Q1's) within each company with revenue that couldn't have been correct on a quarterly basis (eg: AMD - $18 Billion in one quarter)
+    - Also had duplicates across all companies
+    - Claude : "found mixed XBRL reporting periods in an EDGAR backfill by sanity-checking a trend against a known quarter."
+
+    - My analysis: when using EDGAR, it stores several facts with different spans, not just on a quarterly basis, this meant that if there was a Q3 and 9-month YTD posting, it would be classified under the same category of being Q3 leading to a quarter duplication and misleading information.
+        - Companies also usually don't post a Q4 in itself, posting a 10-K instead. 
+
+    FIX :
+        - Categorize by duration of posting rather than date-ends
+        - Derive Q4 by subtracting full year by the 9-month YTD (3/4ths year)
+        - Match by start of date rather than fiscal year filing date to get accurate faceting of financial dates
+        - Deleted info from yfinance to avoid duplicates
+
+        Ran AMD financials loader to verify and make sure it was correct running it through Claude to ensure verification
+
+Analysis summary :
+Looked into company financials to analyze their R&D expenditure against revenue within the latest quarter alongside their operating margins and revenue throguhout the last 5 years posted within their 10Q's
+
+Halfway in, I realized EDGAR backfill did not Extract data correctly so had to do a redo to finish the ipynb.
+
+
+## Week 2
+- [Day 22] : 
+
+    - Started cross-signal analysis between hiring and financials. Not as much insight as the other ipynb's as there wasn't much strong correlations across the board except for one
+        - AI hiring percentage and the % of software/firmware jobs for companies.
+
+    - BUG FIX
+        - Cadence 4Q R&D was listed as being null thanks to a completeness guard check being done before indulging within the analysis.
+        - Happened because CDNS has their R&D tagged as a different CBRL concept, had Claude look into it and fix the bug.
+
+    
