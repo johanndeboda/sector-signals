@@ -185,4 +185,8 @@ Halfway in, I realized EDGAR backfill did not Extract data correctly so had to d
         - Cadence 4Q R&D was listed as being null thanks to a completeness guard check being done before indulging within the analysis.
         - Happened because CDNS has their R&D tagged as a different CBRL concept, had Claude look into it and fix the bug.
 
+    - CONTINUED with cross-segment to see if there was any correlation between segments and any possible relations to hiring via a heatmap
+        - Found what would be expected, no "major insights"
+
+    - 
     
