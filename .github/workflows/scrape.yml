@@ -16,6 +16,7 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
 
     steps:
       - uses: actions/checkout@v6
@@ -24,7 +25,10 @@ jobs:
           python-version: '3.13'
 
       - name: Install Python deps
-        run: pip install psycopg2-binary requests beautifulsoup4 python-dotenv
+        run: pip install psycopg2-binary requests beautifulsoup4 python-dotenv sqlalchemy pandas gspread google-auth
 
       - name: Run the scrape
         run: python etl/load_hiring.py
+
+      - name: Publish aggregates to the Sheet
+        run: python etl/publish_sheets.py
