@@ -8,3 +8,5 @@ data/
 .DS_Store
 *_test.json
 sector_signals_GCP_SA_key.json
+HANDOFF.md
+interview_moments.md

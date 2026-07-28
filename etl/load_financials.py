@@ -1,10 +1,19 @@
 """
+
 load_financials.py
 ------------------
 Pulls 5 years of quarterly financials and daily stock prices from yfinance
 for all 12 target tickers, loads into Postgres.
 
+SOURCING NOTE:
+    yfinance is the INGEST source for financials (fast, covers all tickers in
+    one call). It is NOT treated as the source of record. Any figure that
+    reaches the public dashboard is verified against the company's primary
+    SEC filings (10-Q / 10-K) before publication — see edgar_backfill.py for
+    the EDGAR-based reconciliation.
+
 Idempotent: safe to re-run. Uses ON CONFLICT DO NOTHING on composite PKs.
+
 """
 
 import os

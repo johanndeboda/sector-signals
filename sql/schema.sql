@@ -1,10 +1,12 @@
 -- =====================================================================
 -- Sector Signals — schema.sql
--- Creates 5 tables and seeds the companies table with 12 target tickers.
--- Safe to re-run: uses IF NOT EXISTS and ON CONFLICT DO NOTHING.
+-- Creates the tables for the semiconductor signals pipeline and seeds the
+-- companies table with the 12-company target universe.
+-- Idempotent: safe to re-run (IF NOT EXISTS + ON CONFLICT DO NOTHING).
 -- =====================================================================
 
 -- ---------- companies ----------
+-- Shared dimension table. Every signal table foreign-keys to this.
 CREATE TABLE IF NOT EXISTS companies (
     ticker       TEXT PRIMARY KEY,
     name         TEXT NOT NULL,
@@ -13,17 +15,23 @@ CREATE TABLE IF NOT EXISTS companies (
 );
 
 -- ---------- financials_quarterly ----------
+-- Quarterly financials. Seeded from yfinance (load_financials.py), then
+-- US-listed tickers are deleted and reloaded from SEC EDGAR
+-- (edgar_backfill.py) — EDGAR is the source of record; yfinance remains
+-- only for TSM (foreign filer). operating_margin stored as a fraction.
 CREATE TABLE IF NOT EXISTS financials_quarterly (
     ticker            TEXT NOT NULL REFERENCES companies(ticker),
-    quarter           DATE NOT NULL,
+    quarter           DATE NOT NULL,        -- fiscal quarter-end date
     revenue           NUMERIC,
     rd_spend          NUMERIC,
     net_income        NUMERIC,
-    operating_margin  NUMERIC,
+    operating_margin  NUMERIC,              -- fraction, e.g. -0.231 = -23.1%
     PRIMARY KEY (ticker, quarter)
 );
 
 -- ---------- stock_prices_daily ----------
+-- Daily OHLCV from yfinance (load_financials.py). Not currently surfaced on
+-- the dashboard; retained for future price-vs-signal analysis.
 CREATE TABLE IF NOT EXISTS stock_prices_daily (
     ticker  TEXT NOT NULL REFERENCES companies(ticker),
     date    DATE NOT NULL,
@@ -36,6 +44,8 @@ CREATE TABLE IF NOT EXISTS stock_prices_daily (
 );
 
 -- ---------- patents ----------
+-- Patents signal (load_patents.py, PatentsView data). Populated but not yet
+-- surfaced on the dashboard — cross-signal patent analysis is future work.
 CREATE TABLE IF NOT EXISTS patents (
     patent_id         TEXT PRIMARY KEY,
     assignee_ticker   TEXT REFERENCES companies(ticker),
@@ -45,20 +55,9 @@ CREATE TABLE IF NOT EXISTS patents (
     inventor_count    INTEGER
 );
 
--- ---------- job_postings ----------
-CREATE TABLE IF NOT EXISTS job_postings (
-    posting_id   TEXT PRIMARY KEY,
-    ticker       TEXT REFERENCES companies(ticker),
-    posted_date  DATE,
-    title        TEXT,
-    location     TEXT,
-    function     TEXT,    -- LLM-classified, nullable
-    seniority    TEXT,    -- LLM-classified, nullable
-    signal_tag   TEXT     -- LLM-classified, nullable
-);
-
 -- =====================================================================
--- Seed companies — 12 target tickers
+-- Seed companies — 12-company target universe
+-- (9 active in the hiring pipeline; SNPS/ANSS/TSM seeded for future work)
 -- =====================================================================
 INSERT INTO companies (ticker, name, segment, hq_country) VALUES
     ('CDNS', 'Cadence Design Systems', 'EDA',     'USA'),
@@ -75,40 +74,32 @@ INSERT INTO companies (ticker, name, segment, hq_country) VALUES
     ('TSM',  'Taiwan Semiconductor',   'Foundry', 'Taiwan')
 ON CONFLICT (ticker) DO NOTHING;
 
--- ============================================================
--- hiring_signals: one row per (job_posting, snapshot_date)
--- ============================================================
--- Why this shape:
--- - PK is (job_id, snapshot_date): same job posting captured on different days
---   gets multiple rows. Lets us track "first seen" / "last seen" / posting age.
--- - job_id comes from the ATS (Workday uses an externalPath like "R-12345").
---   Stable per company within one ATS, but NOT globally unique across companies,
---   so the PK includes ticker implicitly via job_id pattern (we'll prefix it).
--- - captured_date is when WE scraped it. posted_date is when the company listed it.
---   These differ when we discover a job that's been open for weeks.
--- - location stored as raw string for now; parsing into city/country is a Week 2 job.
--- - category is our derived bucket (engineering / sales / G&A / etc.) — populated
---   later by a keyword classifier. NULL on ingest is fine.
--- - ats column lets us know which scraper produced this row, useful for debugging
---   and for tracking if a company migrates ATS platforms mid-project.
-
+-- =====================================================================
+-- hiring_signals — the active hiring table.
+-- One row per (job_id, snapshot_date): the same posting seen on different
+-- days gets multiple rows, enabling first-seen / last-seen / posting-age.
+--   job_id        = ATS posting ID, ticker-prefixed (e.g. "AMD:87520") so it
+--                   is globally unique — this is why (job_id, snapshot_date)
+--                   is a safe PK across companies.
+--   snapshot_date = the date WE scraped it
+--   posted_date   = when the company listed it (best-effort)
+--   category      = 13-bucket role classification (NULL on ingest, derived later)
+--   ats           = which scraper produced the row (workday/jibe/eightfold/etc.)
+-- =====================================================================
 CREATE TABLE IF NOT EXISTS hiring_signals (
-    job_id         TEXT        NOT NULL,
+    job_id         TEXT        NOT NULL,     -- ticker-prefixed, e.g. "AMD:87520"
     ticker         TEXT        NOT NULL REFERENCES companies(ticker),
-    snapshot_date  DATE        NOT NULL,        -- the scrape date
+    snapshot_date  DATE        NOT NULL,
     title          TEXT        NOT NULL,
-    location       TEXT,                        -- raw, e.g. "Santa Clara, CA, USA"
-    posted_date    DATE,                        -- when the company posted it (best-effort)
-    category       TEXT,                        -- derived later, NULL on ingest
-    ats            TEXT        NOT NULL,        -- 'workday', 'icims', 'avature', etc.
-    job_url        TEXT,                        -- direct apply link, useful for spot-checks
+    location       TEXT,                     -- raw, e.g. "Santa Clara, CA, USA"
+    posted_date    DATE,
+    category       TEXT,                     -- derived later, NULL on ingest
+    ats            TEXT        NOT NULL,
+    job_url        TEXT,
     captured_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (job_id, snapshot_date)
 );
 
--- Indexes for the queries we'll actually run:
--- - "How many openings did NVDA have on this date?" → ticker + snapshot_date
--- - "Show me all postings ever seen for AMD" → ticker
 CREATE INDEX IF NOT EXISTS idx_hiring_ticker_date
     ON hiring_signals (ticker, snapshot_date);
 

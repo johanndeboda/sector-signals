@@ -44,9 +44,10 @@ print(f"snapshot {SNAP_DATE} | {df['ticker'].nunique()} tickers | {len(df):,} po
 
 
 # ── 3. classifier — COPIED VERBATIM from 03_hiring_category.ipynb (Cell 6) ──
-#     Third copy (also in 20_cross_signals.ipynb). NOT extracted to a module, by
-#     decisions. The reconcile print below is the drift
-#     detector — if unclassified/AI % diverge from 03, a copy went stale.
+#     Third verbatim copy (also in 20_cross_signals.ipynb). Intentionally NOT
+#     extracted to a shared module: notebooks stay standalone so each runs without
+#     cross-file imports. The reconcile print below is the drift detector — if
+#     unclassified/AI % diverge from notebook 03, a copy has gone stale.
 AI_PAT = re.compile(r"\b(ai|ml|machine learning|deep learning|neural|llm|large language model|generative|genai|computer vision|nlp|natural language|transformer|reinforcement learning)\b")
 
 ROLE_RULES = [
@@ -148,7 +149,7 @@ print(role_mix.head(14).to_string(index=False))
 print("… (one ticker's 14 buckets shown; 8 more follow)")
 
 # ── 7. authenticate as the service account (secret in CI, file locally) ─────
-SHEET_ID = "1i-4Mj3GcT2AF0rawXuely5DjRBjKJ7cpjGDjiSdYV_Y"   # same Sheet testsheets.py proved
+SHEET_ID = "1i-4Mj3GcT2AF0rawXuely5DjRBjKJ7cpjGDjiSdYV_Y"   # The google sheets that Tableau reads from
 
 raw = os.environ.get("GOOGLE_SA_JSON")                 # CI: GitHub injects the secret as a string
 if raw:

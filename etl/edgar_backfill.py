@@ -7,7 +7,7 @@ for US-listed tickers (skips TSM — foreign filer, 20-F not 10-Q).
 EDGAR is authoritative, so this script UPDATES on conflict — overwriting any
 existing rows from yfinance with EDGAR values for the same (ticker, quarter).
 
-Requires a User-Agent header per SEC fair-use policy. Put your email below.
+Requires a User-Agent header per SEC fair-use policy. 
 """
 
 import os
@@ -28,7 +28,7 @@ DB_URL = (
     f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
 )
 
-# SEC requires a User-Agent identifying you. Replace with your real email.
+# SEC requires a User-Agent identifying you. 
 SEC_USER_AGENT = f"Johann (sector-signals project) {os.getenv('SEC_USER_AGENT_EMAIL')}"
 
 # CIK = SEC's permanent ID per company. Padded to 10 digits in URL.
