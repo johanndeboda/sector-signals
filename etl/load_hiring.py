@@ -20,6 +20,7 @@ re-running on the same day inserts only net-new rows. Page-level requests
 are wrapped in _request_with_retry() for transient connection errors.
 """
 
+from email.mime import base
 import re
 import os
 import time
@@ -143,6 +144,28 @@ def _request_with_retry(method: str, url: str, *, attempts: int = 3,
             print(f"  [retry] {method} {url[:70]}... "
                   f"{type(e).__name__}; attempt {attempt}/{attempts}, "
                   f"waiting {delay:.0f}s")
+            time.sleep(delay)
+            delay *= backoff
+
+def _get_json_with_retry(url, *, attempts: int = 3, base_delay: float = 2.0,
+                         backoff: float = 2.0, **kwargs):
+    """GET + parse JSON, retrying when the body is empty or unparseable.
+
+    Eightfold intermittently returns HTTP 200 with an empty body under rapid
+    pagination (anti-bot throttling). _request_with_retry doesn't catch this
+    because the request itself succeeds — the failure is at parse time.
+    """
+    delay = base_delay
+    for attempt in range(1, attempts + 1):
+        r = _request_with_retry("GET", url, **kwargs)
+        try:
+            return r.json()
+        except ValueError:
+            if attempt == attempts:
+                raise
+            print(f"  [retry] empty/invalid JSON body "
+                  f"(HTTP {r.status_code}, {len(r.content)} bytes); "
+                  f"attempt {attempt}/{attempts}, waiting {delay:.0f}s")
             time.sleep(delay)
             delay *= backoff
 
@@ -606,8 +629,7 @@ def fetch_eightfold_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
 
     for _ in range(EIGHTFOLD_MAX_PAGES):
         params["start"] = start
-        r = _request_with_retry("GET", base, headers=headers, params=params, timeout=30)
-        data = r.json()["data"]
+        data = _get_json_with_retry(base, headers=headers, params=params, timeout=30)["data"]
 
         if total is None:
             total = data["count"]
@@ -641,6 +663,8 @@ def fetch_eightfold_jobs(ticker: str, cfg: dict) -> Iterator[dict]:
         time.sleep(SLEEP_BETWEEN_PAGES)
     else:
         print(f"  {ticker}: WARNING — hit EIGHTFOLD_MAX_PAGES. Job count may be incomplete.")
+
+
 
 # ============================================================
 # ORACLE HCM FETCHER  (TXN — added Day 8)
